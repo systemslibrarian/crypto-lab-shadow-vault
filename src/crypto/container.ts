@@ -17,7 +17,7 @@ import { chachaPoly1305Seal, chachaPoly1305Open } from './chacha20poly1305.js';
 import { deriveKeyMaterial } from './argon2.js';
 import { deriveAllKeys } from '../derive/keys.js';
 import type { VaultConfig, EncryptResult, DecryptResult, ContainerSize } from '../types/vault.js';
-import { VALID_CONTAINER_SIZES, MAX_COLLISION_COUNTER } from '../types/vault.js';
+import { VALID_CONTAINER_SIZES, MAX_COLLISION_COUNTER, uniformOffset } from '../types/vault.js';
 
 const AAD = new TextEncoder().encode('shadow-vault:v1');
 
@@ -96,8 +96,10 @@ export async function createContainer(
   // Zero key material after use
   zeroBytes(keys.real.key);
   zeroBytes(keys.real.nonce);
+  zeroBytes(keys.real.offsetSeeds);
   zeroBytes(keys.decoy.key);
   zeroBytes(keys.decoy.nonce);
+  zeroBytes(keys.decoy.offsetSeeds);
 
   onProgress('Container created.');
 
@@ -129,7 +131,7 @@ export async function openContainer(
       const { material, durationMs } = await deriveKeyMaterial(
         passphrase, role, config.argon2Params, cc
       );
-      const offset = material.offsetSeed % safeRange;
+      const offset = uniformOffset(material.offsetSeeds, safeRange);
 
       onProgress('Verifying authentication tag...');
       const sealed = container.slice(offset, offset + slotSize + 16);
@@ -142,6 +144,7 @@ export async function openContainer(
           // Zero key material after successful decryption
           zeroBytes(material.key);
           zeroBytes(material.nonce);
+          zeroBytes(material.offsetSeeds);
           // Calculate offset percentage for visual indicator (no exact number)
           const offsetPercent = Math.round((offset / safeRange) * 100);
           return { success: true, message, derivationMs: durationMs, offsetPercent };
@@ -153,6 +156,7 @@ export async function openContainer(
       // Zero key material for failed attempts
       zeroBytes(material.key);
       zeroBytes(material.nonce);
+      zeroBytes(material.offsetSeeds);
     }
   }
 

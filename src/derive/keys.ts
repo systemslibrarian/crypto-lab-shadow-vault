@@ -11,7 +11,7 @@
  */
 import { deriveKeyMaterial } from '../crypto/argon2.js';
 import type { DerivedKeyMaterial, VaultConfig } from '../types/vault.js';
-import { MAX_COLLISION_COUNTER } from '../types/vault.js';
+import { MAX_COLLISION_COUNTER, uniformOffset } from '../types/vault.js';
 
 function slotsOverlap(offsetA: number, offsetB: number, slotWithTag: number): boolean {
   return Math.abs(offsetA - offsetB) < slotWithTag;
@@ -39,14 +39,14 @@ export async function deriveAllKeys(
   // Derive real key material (cc=0)
   onProgress('real', false);
   let realResult = await deriveKeyMaterial(realPassphrase, 'real', config.argon2Params, 0);
-  let realOffset = realResult.material.offsetSeed % safeRange;
+  let realOffset = uniformOffset(realResult.material.offsetSeeds, safeRange);
   let realTotalMs = realResult.durationMs;
   onProgress('real', true);
 
   // Derive decoy key material (cc=0)
   onProgress('decoy', false);
   let decoyResult = await deriveKeyMaterial(decoyPassphrase, 'decoy', config.argon2Params, 0);
-  let decoyOffset = decoyResult.material.offsetSeed % safeRange;
+  let decoyOffset = uniformOffset(decoyResult.material.offsetSeeds, safeRange);
   let decoyTotalMs = decoyResult.durationMs;
   onProgress('decoy', true);
 
@@ -59,7 +59,7 @@ export async function deriveAllKeys(
     if (!slotsOverlap(realOffset, decoyOffset, slotWithTag)) break;
     collisionResolved = true;
     decoyResult = await deriveKeyMaterial(decoyPassphrase, 'decoy', config.argon2Params, cc);
-    decoyOffset = decoyResult.material.offsetSeed % safeRange;
+    decoyOffset = uniformOffset(decoyResult.material.offsetSeeds, safeRange);
     decoyTotalMs += decoyResult.durationMs;
   }
 
@@ -69,7 +69,7 @@ export async function deriveAllKeys(
   if (slotsOverlap(realOffset, decoyOffset, slotWithTag)) {
     for (let cc = 1; cc <= MAX_COLLISION_COUNTER; cc++) {
       realResult = await deriveKeyMaterial(realPassphrase, 'real', config.argon2Params, cc);
-      realOffset = realResult.material.offsetSeed % safeRange;
+      realOffset = uniformOffset(realResult.material.offsetSeeds, safeRange);
       realTotalMs += realResult.durationMs;
 
       if (!slotsOverlap(realOffset, initialDecoyOffset, slotWithTag)) {

@@ -153,7 +153,7 @@ export async function deriveKeyMaterial(
   const material: DerivedKeyMaterial = {
     key: output.slice(0, 32),
     nonce: output.slice(32, 44),
-    offsetSeed: new DataView(output.buffer, output.byteOffset, output.byteLength).getUint32(44, true),
+    offsetSeeds: output.slice(44, 64),
   };
 
   // Zero the raw output buffer — material fields are already copied via .slice()
