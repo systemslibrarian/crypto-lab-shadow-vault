@@ -30,15 +30,28 @@ const MIN_MEMORY_KIB: u32 = 16384; // 16 MB
 const MIN_ITERATIONS: u32 = 2;
 const MIN_PARALLELISM: u32 = 1;
 
-fn validate_argon2_params(memory_kib: u32, iterations: u32, parallelism: u32) -> Result<(), String> {
+fn validate_argon2_params(
+    memory_kib: u32,
+    iterations: u32,
+    parallelism: u32,
+) -> Result<(), String> {
     if memory_kib < MIN_MEMORY_KIB {
-        return Err(format!("Memory too low: {} KiB, minimum {} KiB", memory_kib, MIN_MEMORY_KIB));
+        return Err(format!(
+            "Memory too low: {} KiB, minimum {} KiB",
+            memory_kib, MIN_MEMORY_KIB
+        ));
     }
     if iterations < MIN_ITERATIONS {
-        return Err(format!("Iterations too low: {}, minimum {}", iterations, MIN_ITERATIONS));
+        return Err(format!(
+            "Iterations too low: {}, minimum {}",
+            iterations, MIN_ITERATIONS
+        ));
     }
     if parallelism < MIN_PARALLELISM {
-        return Err(format!("Parallelism too low: {}, minimum {}", parallelism, MIN_PARALLELISM));
+        return Err(format!(
+            "Parallelism too low: {}, minimum {}",
+            parallelism, MIN_PARALLELISM
+        ));
     }
     Ok(())
 }
@@ -165,7 +178,8 @@ fn decode_slot(plaintext: &[u8]) -> Result<String, String> {
     if plaintext.len() < 4 {
         return Err("Slot too short".into());
     }
-    let length = u32::from_le_bytes([plaintext[0], plaintext[1], plaintext[2], plaintext[3]]) as usize;
+    let length =
+        u32::from_le_bytes([plaintext[0], plaintext[1], plaintext[2], plaintext[3]]) as usize;
     if length > plaintext.len() - 4 {
         return Err("Invalid slot data".into());
     }
@@ -179,7 +193,13 @@ fn aead_seal(key: &[u8; 32], nonce: &[u8; 12], plaintext: &[u8]) -> Result<Vec<u
         ChaCha20Poly1305::new_from_slice(key).map_err(|e| format!("Cipher init error: {}", e))?;
     let nonce = Nonce::from_slice(nonce);
     cipher
-        .encrypt(nonce, Payload { msg: plaintext, aad: AAD })
+        .encrypt(
+            nonce,
+            Payload {
+                msg: plaintext,
+                aad: AAD,
+            },
+        )
         .map_err(|e| format!("Encryption error: {}", e))
 }
 
@@ -187,7 +207,13 @@ fn aead_open(key: &[u8; 32], nonce: &[u8; 12], ciphertext: &[u8]) -> Option<Vec<
     let cipher = ChaCha20Poly1305::new_from_slice(key).ok()?;
     let nonce = Nonce::from_slice(nonce);
     cipher
-        .decrypt(nonce, Payload { msg: ciphertext, aad: AAD })
+        .decrypt(
+            nonce,
+            Payload {
+                msg: ciphertext,
+                aad: AAD,
+            },
+        )
         .ok()
 }
 
@@ -227,14 +253,28 @@ fn derive_all_keys(
     let mut collision_resolved = false;
 
     // Derive real key material (cc=0)
-    let real_mat = derive_key_material(real_passphrase, "real", memory_kib, iterations, parallelism, 0)?;
+    let real_mat = derive_key_material(
+        real_passphrase,
+        "real",
+        memory_kib,
+        iterations,
+        parallelism,
+        0,
+    )?;
     let mut real_offset = uniform_offset(&real_mat.offset_seeds, safe_range);
     let mut real_key = real_mat.key;
     let mut real_nonce = real_mat.nonce;
     drop(real_mat);
 
     // Derive decoy key material (cc=0)
-    let decoy_mat_0 = derive_key_material(decoy_passphrase, "decoy", memory_kib, iterations, parallelism, 0)?;
+    let decoy_mat_0 = derive_key_material(
+        decoy_passphrase,
+        "decoy",
+        memory_kib,
+        iterations,
+        parallelism,
+        0,
+    )?;
     let initial_decoy_offset = uniform_offset(&decoy_mat_0.offset_seeds, safe_range);
     let mut decoy_offset = initial_decoy_offset;
     let mut decoy_key = decoy_mat_0.key;
@@ -253,7 +293,14 @@ fn derive_all_keys(
         // Zero previous decoy material before overwriting
         decoy_key.zeroize();
         decoy_nonce.zeroize();
-        let mat = derive_key_material(decoy_passphrase, "decoy", memory_kib, iterations, parallelism, cc)?;
+        let mat = derive_key_material(
+            decoy_passphrase,
+            "decoy",
+            memory_kib,
+            iterations,
+            parallelism,
+            cc,
+        )?;
         decoy_offset = uniform_offset(&mat.offset_seeds, safe_range);
         decoy_key = mat.key;
         decoy_nonce = mat.nonce;
@@ -277,7 +324,14 @@ fn derive_all_keys(
         for cc in 1..=MAX_COLLISION_COUNTER {
             real_key.zeroize();
             real_nonce.zeroize();
-            let mat = derive_key_material(real_passphrase, "real", memory_kib, iterations, parallelism, cc)?;
+            let mat = derive_key_material(
+                real_passphrase,
+                "real",
+                memory_kib,
+                iterations,
+                parallelism,
+                cc,
+            )?;
             real_offset = uniform_offset(&mat.offset_seeds, safe_range);
             real_key = mat.key;
             real_nonce = mat.nonce;
@@ -370,8 +424,8 @@ pub fn create_container(
     .map_err(|e| JsValue::from_str(&e))?;
 
     // Encode and encrypt real message
-    let mut real_slot = encode_slot(real_message.as_bytes(), slot_size)
-        .map_err(|e| JsValue::from_str(&e))?;
+    let mut real_slot =
+        encode_slot(real_message.as_bytes(), slot_size).map_err(|e| JsValue::from_str(&e))?;
     let real_sealed = aead_seal(&keys.real_key, &keys.real_nonce, &real_slot)
         .map_err(|e| JsValue::from_str(&e))?;
     real_slot.zeroize();
@@ -383,8 +437,8 @@ pub fn create_container(
     container[real_off..real_off + real_sealed.len()].copy_from_slice(&real_sealed);
 
     // Encode and encrypt decoy message
-    let mut decoy_slot = encode_slot(decoy_message.as_bytes(), slot_size)
-        .map_err(|e| JsValue::from_str(&e))?;
+    let mut decoy_slot =
+        encode_slot(decoy_message.as_bytes(), slot_size).map_err(|e| JsValue::from_str(&e))?;
     let decoy_sealed = aead_seal(&keys.decoy_key, &keys.decoy_nonce, &decoy_slot)
         .map_err(|e| JsValue::from_str(&e))?;
     decoy_slot.zeroize();
@@ -397,10 +451,26 @@ pub fn create_container(
 
     // Build result object
     let result = js_sys::Object::new();
-    js_sys::Reflect::set(&result, &"container".into(), &js_sys::Uint8Array::from(&container[..]))?;
-    js_sys::Reflect::set(&result, &"realOffset".into(), &JsValue::from(keys.real_offset))?;
-    js_sys::Reflect::set(&result, &"decoyOffset".into(), &JsValue::from(keys.decoy_offset))?;
-    js_sys::Reflect::set(&result, &"collisionResolved".into(), &JsValue::from(keys.collision_resolved))?;
+    js_sys::Reflect::set(
+        &result,
+        &"container".into(),
+        &js_sys::Uint8Array::from(&container[..]),
+    )?;
+    js_sys::Reflect::set(
+        &result,
+        &"realOffset".into(),
+        &JsValue::from(keys.real_offset),
+    )?;
+    js_sys::Reflect::set(
+        &result,
+        &"decoyOffset".into(),
+        &JsValue::from(keys.decoy_offset),
+    )?;
+    js_sys::Reflect::set(
+        &result,
+        &"collisionResolved".into(),
+        &JsValue::from(keys.collision_resolved),
+    )?;
 
     // Explicit zeroize (also happens on drop, but let's be explicit)
     keys.real_key.zeroize();
@@ -459,13 +529,18 @@ pub fn open_container(
             match decode_slot(&plaintext) {
                 Ok(message) => {
                     plaintext.zeroize();
-                    let offset_percent = ((*offset as f64) / (safe_range as f64) * 100.0).round() as u32;
+                    let offset_percent =
+                        ((*offset as f64) / (safe_range as f64) * 100.0).round() as u32;
 
                     // derivations Vec dropped on return → all key material zeroized
                     let result = js_sys::Object::new();
                     js_sys::Reflect::set(&result, &"success".into(), &JsValue::TRUE)?;
                     js_sys::Reflect::set(&result, &"message".into(), &JsValue::from_str(&message))?;
-                    js_sys::Reflect::set(&result, &"offsetPercent".into(), &JsValue::from(offset_percent))?;
+                    js_sys::Reflect::set(
+                        &result,
+                        &"offsetPercent".into(),
+                        &JsValue::from(offset_percent),
+                    )?;
                     return Ok(result.into());
                 }
                 Err(_) => {
@@ -491,7 +566,8 @@ pub fn self_test() -> Result<JsValue, JsValue> {
 
     // Test 1: RFC 8439 §2.8.2 — AEAD with RFC test vectors (using chacha20poly1305 directly)
     {
-        let key_bytes = hex_to_bytes("808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9f");
+        let key_bytes =
+            hex_to_bytes("808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9f");
         let nonce_bytes = hex_to_bytes("070000004041424344454647");
         let aad = hex_to_bytes("50515253c0c1c2c3c4c5c6c7");
         let plaintext = b"Ladies and Gentlemen of the class of '99: If I could offer you only one tip for the future, sunscreen would be it.";
@@ -500,7 +576,13 @@ pub fn self_test() -> Result<JsValue, JsValue> {
         let nonce = Nonce::from_slice(&nonce_bytes);
 
         let sealed = cipher
-            .encrypt(nonce, Payload { msg: &plaintext[..], aad: &aad })
+            .encrypt(
+                nonce,
+                Payload {
+                    msg: &plaintext[..],
+                    aad: &aad,
+                },
+            )
             .unwrap();
 
         let expected_ct = hex_to_bytes(
@@ -511,7 +593,7 @@ pub fn self_test() -> Result<JsValue, JsValue> {
              92ddbd7f2d778b8c9803aee328091b58\
              fab324e4fad675945585808b4831d7bc\
              3ff4def08e4b7a9de576d26586cec64b\
-             6116"
+             6116",
         );
         let expected_tag = hex_to_bytes("1ae10b594f09e26a7e902ecbd0600691");
         let mut expected = expected_ct;
@@ -522,7 +604,13 @@ pub fn self_test() -> Result<JsValue, JsValue> {
         }
 
         // Test open
-        match cipher.decrypt(nonce, Payload { msg: &sealed, aad: &aad }) {
+        match cipher.decrypt(
+            nonce,
+            Payload {
+                msg: &sealed,
+                aad: &aad,
+            },
+        ) {
             Ok(opened) => {
                 if opened != plaintext {
                     failures.push("AEAD open (§2.8.2): wrong plaintext".into());
@@ -536,7 +624,13 @@ pub fn self_test() -> Result<JsValue, JsValue> {
         wrong_key[0] ^= 1;
         let wrong_cipher = ChaCha20Poly1305::new_from_slice(&wrong_key).unwrap();
         if wrong_cipher
-            .decrypt(nonce, Payload { msg: &sealed, aad: &aad })
+            .decrypt(
+                nonce,
+                Payload {
+                    msg: &sealed,
+                    aad: &aad,
+                },
+            )
             .is_ok()
         {
             failures.push("AEAD open should fail with wrong key".into());
@@ -571,7 +665,11 @@ pub fn self_test() -> Result<JsValue, JsValue> {
     }
 
     let result = js_sys::Object::new();
-    js_sys::Reflect::set(&result, &"passed".into(), &JsValue::from(failures.is_empty()))?;
+    js_sys::Reflect::set(
+        &result,
+        &"passed".into(),
+        &JsValue::from(failures.is_empty()),
+    )?;
     let js_failures = js_sys::Array::new();
     for f in &failures {
         js_failures.push(&JsValue::from_str(f));
@@ -641,13 +739,17 @@ mod tests {
     #[test]
     fn uniform_offset_within_range() {
         let seeds: [u8; 20] = [
-            0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70, 0x80,
-            0x90, 0xA0, 0xB0, 0xC0, 0xD0, 0xE0, 0xF0, 0x01,
-            0x02, 0x03, 0x04, 0x05,
+            0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70, 0x80, 0x90, 0xA0, 0xB0, 0xC0, 0xD0, 0xE0,
+            0xF0, 0x01, 0x02, 0x03, 0x04, 0x05,
         ];
         for range in [100, 1000, 4000, 8000, 16000, 32000] {
             let offset = uniform_offset(&seeds, range);
-            assert!(offset < range, "offset {} should be < range {}", offset, range);
+            assert!(
+                offset < range,
+                "offset {} should be < range {}",
+                offset,
+                range
+            );
         }
     }
 
@@ -838,9 +940,8 @@ mod tests {
 
     #[test]
     fn rfc_8439_test_vector() {
-        let key_bytes = hex_to_bytes(
-            "808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9f",
-        );
+        let key_bytes =
+            hex_to_bytes("808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9f");
         let nonce_bytes = hex_to_bytes("070000004041424344454647");
         let aad = hex_to_bytes("50515253c0c1c2c3c4c5c6c7");
         let plaintext = b"Ladies and Gentlemen of the class of '99: \
@@ -850,7 +951,13 @@ If I could offer you only one tip for the future, sunscreen would be it.";
         let nonce = Nonce::from_slice(&nonce_bytes);
 
         let sealed = cipher
-            .encrypt(nonce, Payload { msg: &plaintext[..], aad: &aad })
+            .encrypt(
+                nonce,
+                Payload {
+                    msg: &plaintext[..],
+                    aad: &aad,
+                },
+            )
             .unwrap();
 
         let expected_ct = hex_to_bytes(
@@ -870,7 +977,13 @@ If I could offer you only one tip for the future, sunscreen would be it.";
         assert_eq!(sealed, expected, "AEAD seal must match RFC 8439 §2.8.2");
 
         let opened = cipher
-            .decrypt(nonce, Payload { msg: &sealed, aad: &aad })
+            .decrypt(
+                nonce,
+                Payload {
+                    msg: &sealed,
+                    aad: &aad,
+                },
+            )
             .unwrap();
         assert_eq!(opened, plaintext, "AEAD open must recover plaintext");
     }
@@ -939,10 +1052,18 @@ If I could offer you only one tip for the future, sunscreen would be it.";
         match keys {
             Ok(k) => {
                 let slot_size = 8192 / 3;
-                assert!(!slots_overlap(k.real_offset, k.decoy_offset, slot_size + 16));
+                assert!(!slots_overlap(
+                    k.real_offset,
+                    k.decoy_offset,
+                    slot_size + 16
+                ));
             }
             Err(e) => {
-                assert!(e.contains("collision"), "Error should mention collision: {}", e);
+                assert!(
+                    e.contains("collision"),
+                    "Error should mention collision: {}",
+                    e
+                );
             }
         }
     }
@@ -1047,10 +1168,8 @@ If I could offer you only one tip for the future, sunscreen would be it.";
 
     #[test]
     fn container_wrong_passphrase_returns_none() {
-        let (container, _, _) = create_container_native(
-            "secret", "decoy", "real-pass", "decoy-pass", 8192,
-        )
-        .unwrap();
+        let (container, _, _) =
+            create_container_native("secret", "decoy", "real-pass", "decoy-pass", 8192).unwrap();
 
         let msg = open_container_native(&container, "wrong-pass", 8192);
         assert!(msg.is_none());
@@ -1075,26 +1194,24 @@ If I could offer you only one tip for the future, sunscreen would be it.";
 
     #[test]
     fn container_slots_do_not_overlap() {
-        let (_, real_off, decoy_off) = create_container_native(
-            "msg one", "msg two", "pass-one", "pass-two", 8192,
-        )
-        .unwrap();
+        let (_, real_off, decoy_off) =
+            create_container_native("msg one", "msg two", "pass-one", "pass-two", 8192).unwrap();
 
         let slot_size = 8192 / 3;
         let slot_with_tag = slot_size + 16;
         assert!(
             !slots_overlap(real_off, decoy_off, slot_with_tag),
             "Real offset {} and decoy offset {} must not overlap (slot+tag={})",
-            real_off, decoy_off, slot_with_tag
+            real_off,
+            decoy_off,
+            slot_with_tag
         );
     }
 
     #[test]
     fn container_corruption_detected() {
-        let (mut container, _, _) = create_container_native(
-            "secret", "decoy", "real-pass", "decoy-pass", 8192,
-        )
-        .unwrap();
+        let (mut container, _, _) =
+            create_container_native("secret", "decoy", "real-pass", "decoy-pass", 8192).unwrap();
 
         // Corrupt every 100th byte
         for i in (0..container.len()).step_by(100) {
@@ -1104,16 +1221,20 @@ If I could offer you only one tip for the future, sunscreen would be it.";
         // Both passphrases should fail on a heavily corrupted container
         let real = open_container_native(&container, "real-pass", 8192);
         let decoy = open_container_native(&container, "decoy-pass", 8192);
-        assert!(real.is_none(), "Corrupted container should not decrypt (real)");
-        assert!(decoy.is_none(), "Corrupted container should not decrypt (decoy)");
+        assert!(
+            real.is_none(),
+            "Corrupted container should not decrypt (real)"
+        );
+        assert!(
+            decoy.is_none(),
+            "Corrupted container should not decrypt (decoy)"
+        );
     }
 
     #[test]
     fn container_all_valid_sizes() {
         for &size in &[4096u32, 8192, 16384, 32768] {
-            let result = create_container_native(
-                "hi", "bye", "pass-r", "pass-d", size,
-            );
+            let result = create_container_native("hi", "bye", "pass-r", "pass-d", size);
             assert!(result.is_ok(), "Container size {} should work", size);
             let (container, _, _) = result.unwrap();
             assert_eq!(container.len(), size as usize);
@@ -1125,10 +1246,7 @@ If I could offer you only one tip for the future, sunscreen would be it.";
 
     #[test]
     fn container_empty_messages() {
-        let (container, _, _) = create_container_native(
-            "", "", "pass-r", "pass-d", 4096,
-        )
-        .unwrap();
+        let (container, _, _) = create_container_native("", "", "pass-r", "pass-d", 4096).unwrap();
 
         let real = open_container_native(&container, "pass-r", 4096).unwrap();
         let decoy = open_container_native(&container, "pass-d", 4096).unwrap();
@@ -1138,10 +1256,9 @@ If I could offer you only one tip for the future, sunscreen would be it.";
 
     #[test]
     fn container_unicode_messages() {
-        let (container, _, _) = create_container_native(
-            "こんにちは世界", "مرحبا بالعالم", "pass-r", "pass-d", 8192,
-        )
-        .unwrap();
+        let (container, _, _) =
+            create_container_native("こんにちは世界", "مرحبا بالعالم", "pass-r", "pass-d", 8192)
+                .unwrap();
 
         let real = open_container_native(&container, "pass-r", 8192).unwrap();
         let decoy = open_container_native(&container, "pass-d", 8192).unwrap();
@@ -1166,14 +1283,20 @@ If I could offer you only one tip for the future, sunscreen would be it.";
                 let slot_with_tag = slot_size + 16;
                 assert!(
                     !slots_overlap(real_off, decoy_off, slot_with_tag),
-                    "Slots overlap: real={}, decoy={}", real_off, decoy_off
+                    "Slots overlap: real={}, decoy={}",
+                    real_off,
+                    decoy_off
                 );
 
                 let real = open_container_native(&container, real_pass, container_size);
                 assert_eq!(real.as_deref(), Some(""), "Failed to recover real message");
 
                 let decoy = open_container_native(&container, decoy_pass, container_size);
-                assert_eq!(decoy.as_deref(), Some(""), "Failed to recover decoy message");
+                assert_eq!(
+                    decoy.as_deref(),
+                    Some(""),
+                    "Failed to recover decoy message"
+                );
             }
             Err(e) => {
                 assert!(e.contains("collision"), "Unexpected error: {}", e);
@@ -1202,7 +1325,8 @@ If I could offer you only one tip for the future, sunscreen would be it.";
         let slot_size = (container_size / 3) as usize;
         let too_long = "A".repeat(slot_size); // slot_size > max allowed (slot_size - 4)
 
-        let result = create_container_native(&too_long, "short", "pass-r", "pass-d", container_size);
+        let result =
+            create_container_native(&too_long, "short", "pass-r", "pass-d", container_size);
         assert!(result.is_err());
     }
 
@@ -1221,7 +1345,10 @@ If I could offer you only one tip for the future, sunscreen would be it.";
         let mut hasher = Sha256::new();
         hasher.update(b"shadow-vault:v1:real");
         let expected_real: [u8; 32] = hasher.finalize().into();
-        assert_eq!(real_cc0, expected_real, "Salt for real/cc0 must match SHA-256 of 'shadow-vault:v1:real'");
+        assert_eq!(
+            real_cc0, expected_real,
+            "Salt for real/cc0 must match SHA-256 of 'shadow-vault:v1:real'"
+        );
 
         let mut hasher = Sha256::new();
         hasher.update(b"shadow-vault:v1:decoy");
@@ -1252,8 +1379,14 @@ If I could offer you only one tip for the future, sunscreen would be it.";
         // Re-derive and verify stability (same inputs must produce same output)
         let mat2 = derive_key_material("test-vector-passphrase", "real", 256, 1, 1, 0).unwrap();
         assert_eq!(mat.key, mat2.key, "Key derivation must be deterministic");
-        assert_eq!(mat.nonce, mat2.nonce, "Nonce derivation must be deterministic");
-        assert_eq!(mat.offset_seeds, mat2.offset_seeds, "Offset seeds must be deterministic");
+        assert_eq!(
+            mat.nonce, mat2.nonce,
+            "Nonce derivation must be deterministic"
+        );
+        assert_eq!(
+            mat.offset_seeds, mat2.offset_seeds,
+            "Offset seeds must be deterministic"
+        );
 
         // Sanity: output should not be all zeros
         assert_ne!(mat.key, [0u8; 32], "Key must not be all zeros");
@@ -1309,17 +1442,26 @@ If I could offer you only one tip for the future, sunscreen would be it.";
     fn pinned_vector_real_cc0() {
         let mat = derive_key_material("test-vector-passphrase", "real", 256, 1, 1, 0).unwrap();
         assert_eq!(
-            mat.key.iter().map(|b| format!("{:02x}", b)).collect::<String>(),
+            mat.key
+                .iter()
+                .map(|b| format!("{:02x}", b))
+                .collect::<String>(),
             "613d5144a8be8d5ab21ba284f8f3afc039c8c61f80f7f60c5f389c59f0812cfa",
             "Key derivation for real/cc0 changed — this breaks existing containers"
         );
         assert_eq!(
-            mat.nonce.iter().map(|b| format!("{:02x}", b)).collect::<String>(),
+            mat.nonce
+                .iter()
+                .map(|b| format!("{:02x}", b))
+                .collect::<String>(),
             "a60ced6e00b20d75d50b4115",
             "Nonce derivation for real/cc0 changed"
         );
         assert_eq!(
-            mat.offset_seeds.iter().map(|b| format!("{:02x}", b)).collect::<String>(),
+            mat.offset_seeds
+                .iter()
+                .map(|b| format!("{:02x}", b))
+                .collect::<String>(),
             "0ace1364f64fbceda90fd1ec451514af70af2457",
             "Offset seeds for real/cc0 changed"
         );
@@ -1329,17 +1471,26 @@ If I could offer you only one tip for the future, sunscreen would be it.";
     fn pinned_vector_decoy_cc0() {
         let mat = derive_key_material("test-vector-passphrase", "decoy", 256, 1, 1, 0).unwrap();
         assert_eq!(
-            mat.key.iter().map(|b| format!("{:02x}", b)).collect::<String>(),
+            mat.key
+                .iter()
+                .map(|b| format!("{:02x}", b))
+                .collect::<String>(),
             "7ebce1e61141081d4c8ecf949877d3be1fc6b551c1946a38529c5abc662f906b",
             "Key derivation for decoy/cc0 changed — this breaks existing containers"
         );
         assert_eq!(
-            mat.nonce.iter().map(|b| format!("{:02x}", b)).collect::<String>(),
+            mat.nonce
+                .iter()
+                .map(|b| format!("{:02x}", b))
+                .collect::<String>(),
             "bd66d48145f05ddfc0bdcb37",
             "Nonce derivation for decoy/cc0 changed"
         );
         assert_eq!(
-            mat.offset_seeds.iter().map(|b| format!("{:02x}", b)).collect::<String>(),
+            mat.offset_seeds
+                .iter()
+                .map(|b| format!("{:02x}", b))
+                .collect::<String>(),
             "e88c8e5707ea53c620c9d73bb479db69433ea7e7",
             "Offset seeds for decoy/cc0 changed"
         );
@@ -1349,12 +1500,18 @@ If I could offer you only one tip for the future, sunscreen would be it.";
     fn pinned_vector_real_cc1() {
         let mat = derive_key_material("test-vector-passphrase", "real", 256, 1, 1, 1).unwrap();
         assert_eq!(
-            mat.key.iter().map(|b| format!("{:02x}", b)).collect::<String>(),
+            mat.key
+                .iter()
+                .map(|b| format!("{:02x}", b))
+                .collect::<String>(),
             "59ea5d7c8395f6c64c49541edd64632a1fa5b9485337557212a8b27ca53d4edc",
             "Key derivation for real/cc1 changed — collision counter salt is format-sensitive"
         );
         assert_eq!(
-            mat.nonce.iter().map(|b| format!("{:02x}", b)).collect::<String>(),
+            mat.nonce
+                .iter()
+                .map(|b| format!("{:02x}", b))
+                .collect::<String>(),
             "4a98f94d381c84d61ef713ae",
             "Nonce derivation for real/cc1 changed"
         );
@@ -1366,13 +1523,15 @@ If I could offer you only one tip for the future, sunscreen would be it.";
         let safe_range: u32 = 8192 - (8192 / 3) - 16;
         assert_eq!(safe_range, 5446, "Safe range formula changed");
         assert_eq!(
-            uniform_offset(&mat.offset_seeds, safe_range), 1392,
+            uniform_offset(&mat.offset_seeds, safe_range),
+            1392,
             "Offset derivation changed — this breaks existing containers"
         );
 
         let mat2 = derive_key_material("test-vector-passphrase", "decoy", 256, 1, 1, 0).unwrap();
         assert_eq!(
-            uniform_offset(&mat2.offset_seeds, safe_range), 4950,
+            uniform_offset(&mat2.offset_seeds, safe_range),
+            4950,
             "Decoy offset derivation changed"
         );
     }
@@ -1381,9 +1540,9 @@ If I could offer you only one tip for the future, sunscreen would be it.";
 
     #[test]
     fn single_bit_flip_detected() {
-        let (container, real_off, _) = create_container_native(
-            "sensitive data", "cover story", "pass-r", "pass-d", 8192,
-        ).unwrap();
+        let (container, real_off, _) =
+            create_container_native("sensitive data", "cover story", "pass-r", "pass-d", 8192)
+                .unwrap();
 
         // Flip a single bit in the real message's ciphertext region
         let mut corrupted = container.clone();
@@ -1397,9 +1556,9 @@ If I could offer you only one tip for the future, sunscreen would be it.";
 
     #[test]
     fn tag_bit_flip_detected() {
-        let (container, real_off, _) = create_container_native(
-            "sensitive data", "cover story", "pass-r", "pass-d", 8192,
-        ).unwrap();
+        let (container, real_off, _) =
+            create_container_native("sensitive data", "cover story", "pass-r", "pass-d", 8192)
+                .unwrap();
 
         let slot_size = 8192 / 3;
         // Flip a bit in the authentication tag (last 16 bytes of sealed slot)
@@ -1414,9 +1573,8 @@ If I could offer you only one tip for the future, sunscreen would be it.";
 
     #[test]
     fn truncated_container_rejected() {
-        let (container, _, _) = create_container_native(
-            "msg", "decoy", "pass-r", "pass-d", 8192,
-        ).unwrap();
+        let (container, _, _) =
+            create_container_native("msg", "decoy", "pass-r", "pass-d", 8192).unwrap();
 
         // Truncate to invalid size
         let truncated = &container[..4000];
@@ -1439,9 +1597,9 @@ If I could offer you only one tip for the future, sunscreen would be it.";
     fn container_is_full_size() {
         // Container must always be exactly the specified size
         for &size in &[4096u32, 8192, 16384, 32768] {
-            let (container, _, _) = create_container_native(
-                "x", "y", "pass-real-full", "pass-decoy-full", size,
-            ).unwrap();
+            let (container, _, _) =
+                create_container_native("x", "y", "pass-real-full", "pass-decoy-full", size)
+                    .unwrap();
             assert_eq!(container.len(), size as usize);
         }
     }
@@ -1457,38 +1615,39 @@ If I could offer you only one tip for the future, sunscreen would be it.";
             // Two slots with tags must fit in the container
             assert!(
                 slot_with_tag * 2 <= cs,
-                "Two slots don't fit in container size {}", cs
+                "Two slots don't fit in container size {}",
+                cs
             );
 
             // Max offset + slot_with_tag must not exceed container
             assert!(
                 safe_range + slot_with_tag <= cs,
-                "Slot at max offset exceeds container for size {}", cs
+                "Slot at max offset exceeds container for size {}",
+                cs
             );
 
             // Max message length must be positive
-            assert!(slot_size > 4, "Slot size too small for container size {}", cs);
+            assert!(
+                slot_size > 4,
+                "Slot size too small for container size {}",
+                cs
+            );
         }
     }
 
     #[test]
     fn independent_containers_differ() {
         // Two containers with the same inputs must differ (CSPRNG padding)
-        let (c1, _, _) = create_container_native(
-            "same", "same", "pass-r", "pass-d", 4096,
-        ).unwrap();
-        let (c2, _, _) = create_container_native(
-            "same", "same", "pass-r", "pass-d", 4096,
-        ).unwrap();
+        let (c1, _, _) = create_container_native("same", "same", "pass-r", "pass-d", 4096).unwrap();
+        let (c2, _, _) = create_container_native("same", "same", "pass-r", "pass-d", 4096).unwrap();
         assert_ne!(c1, c2, "Two containers must differ due to CSPRNG padding");
     }
 
     #[test]
     fn container_wrong_size_parameter_fails() {
         // Create with one size, try to open with another
-        let (container, _, _) = create_container_native(
-            "msg", "decoy", "pass-r", "pass-d", 8192,
-        ).unwrap();
+        let (container, _, _) =
+            create_container_native("msg", "decoy", "pass-r", "pass-d", 8192).unwrap();
 
         // Wrong container_size parameter should fail
         assert!(open_container_native(&container, "pass-r", 4096).is_none());
@@ -1497,16 +1656,17 @@ If I could offer you only one tip for the future, sunscreen would be it.";
 
     #[test]
     fn many_passphrases_no_false_positive() {
-        let (container, _, _) = create_container_native(
-            "real", "decoy", "correct-real", "correct-decoy", 8192,
-        ).unwrap();
+        let (container, _, _) =
+            create_container_native("real", "decoy", "correct-real", "correct-decoy", 8192)
+                .unwrap();
 
         // Try 20 wrong passphrases — none should succeed
         for i in 0..20 {
             let wrong = format!("wrong-pass-{}", i);
             assert!(
                 open_container_native(&container, &wrong, 8192).is_none(),
-                "False positive with passphrase '{}'", wrong
+                "False positive with passphrase '{}'",
+                wrong
             );
         }
     }
@@ -1745,9 +1905,9 @@ mod proptests {
     fn container_entropy_high() {
         // Statistical test: container bytes should have near-uniform distribution.
         // Chi-squared test with 256 bins — expect p-value > 0.01.
-        let (container, _, _) = create_container_native(
-            "test message", "decoy msg", "pass-r", "pass-d", 32768,
-        ).unwrap();
+        let (container, _, _) =
+            create_container_native("test message", "decoy msg", "pass-r", "pass-d", 32768)
+                .unwrap();
 
         let mut counts = [0u64; 256];
         for &b in &container {
@@ -1755,7 +1915,8 @@ mod proptests {
         }
 
         let expected = container.len() as f64 / 256.0;
-        let chi_sq: f64 = counts.iter()
+        let chi_sq: f64 = counts
+            .iter()
             .map(|&c| {
                 let diff = c as f64 - expected;
                 diff * diff / expected
@@ -1764,7 +1925,11 @@ mod proptests {
 
         // With 255 degrees of freedom, chi-squared critical value at p=0.001 is ~310.
         // A good random distribution should be well below this.
-        assert!(chi_sq < 400.0, "Container bytes have suspicious distribution: chi²={:.1}", chi_sq);
+        assert!(
+            chi_sq < 400.0,
+            "Container bytes have suspicious distribution: chi²={:.1}",
+            chi_sq
+        );
     }
 
     #[test]
@@ -1772,14 +1937,17 @@ mod proptests {
         // CSPRNG padding must make each container unique.
         let mut containers = Vec::new();
         for _ in 0..5 {
-            let (c, _, _) = create_container_native(
-                "msg", "decoy", "pass-r", "pass-d", 4096,
-            ).unwrap();
+            let (c, _, _) =
+                create_container_native("msg", "decoy", "pass-r", "pass-d", 4096).unwrap();
             containers.push(c);
         }
         for i in 0..containers.len() {
-            for j in (i+1)..containers.len() {
-                assert_ne!(containers[i], containers[j], "Containers {} and {} are identical", i, j);
+            for j in (i + 1)..containers.len() {
+                assert_ne!(
+                    containers[i], containers[j],
+                    "Containers {} and {} are identical",
+                    i, j
+                );
             }
         }
     }
