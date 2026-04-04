@@ -48,9 +48,13 @@
             <div class="bg-vault-surface border border-vault-border rounded-lg p-5">
               <h2 class="font-display text-lg font-semibold mb-4 text-vault-crimson">REAL MESSAGE</h2>
               <label for="real-passphrase" class="block text-xs text-vault-text-dim mb-1">Passphrase</label>
-              <div class="relative mb-3">
+              <div class="relative mb-1">
                 <input id="real-passphrase" type="password" autocomplete="new-password" class="w-full bg-vault-bg border border-vault-border rounded px-3 py-2.5 text-vault-text text-sm focus:border-vault-crimson focus:ring-1 focus:ring-vault-crimson outline-none transition-colors min-h-[44px]" placeholder="Strong passphrase for real message" />
                 <button class="toggle-password absolute right-2 top-1/2 -translate-y-1/2 text-vault-text-dim hover:text-vault-text p-1 min-w-[44px] min-h-[44px] flex items-center justify-center" aria-label="Toggle password visibility" data-target="real-passphrase">👁</button>
+              </div>
+              <div class="mb-3">
+                <div id="real-strength-bar" class="h-1 rounded bg-vault-bg overflow-hidden"><div class="h-full transition-all duration-300" style="width:0%"></div></div>
+                <p id="real-strength-label" class="text-xs mt-1 text-vault-text-muted">&nbsp;</p>
               </div>
               <label for="real-message" class="block text-xs text-vault-text-dim mb-1">Message</label>
               <textarea id="real-message" rows="4" class="w-full bg-vault-bg border border-vault-border rounded px-3 py-2.5 text-vault-text text-sm focus:border-vault-crimson focus:ring-1 focus:ring-vault-crimson outline-none transition-colors resize-none" placeholder="The message you want to protect"></textarea>
@@ -61,9 +65,13 @@
             <div class="bg-vault-surface border border-vault-border rounded-lg p-5">
               <h2 class="font-display text-lg font-semibold mb-4 text-vault-amber">DECOY MESSAGE</h2>
               <label for="decoy-passphrase" class="block text-xs text-vault-text-dim mb-1">Passphrase</label>
-              <div class="relative mb-3">
+              <div class="relative mb-1">
                 <input id="decoy-passphrase" type="password" autocomplete="new-password" class="w-full bg-vault-bg border border-vault-border rounded px-3 py-2.5 text-vault-text text-sm focus:border-vault-amber focus:ring-1 focus:ring-vault-amber outline-none transition-colors min-h-[44px]" placeholder="Decoy passphrase to reveal under coercion" />
                 <button class="toggle-password absolute right-2 top-1/2 -translate-y-1/2 text-vault-text-dim hover:text-vault-text p-1 min-w-[44px] min-h-[44px] flex items-center justify-center" aria-label="Toggle password visibility" data-target="decoy-passphrase">👁</button>
+              </div>
+              <div class="mb-3">
+                <div id="decoy-strength-bar" class="h-1 rounded bg-vault-bg overflow-hidden"><div class="h-full transition-all duration-300" style="width:0%"></div></div>
+                <p id="decoy-strength-label" class="text-xs mt-1 text-vault-text-muted">&nbsp;</p>
               </div>
               <label for="decoy-message" class="block text-xs text-vault-text-dim mb-1">Message</label>
               <textarea id="decoy-message" rows="4" class="w-full bg-vault-bg border border-vault-border rounded px-3 py-2.5 text-vault-text text-sm focus:border-vault-amber focus:ring-1 focus:ring-vault-amber outline-none transition-colors resize-none" placeholder="Plausible decoy message"></textarea>

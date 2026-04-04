@@ -23,11 +23,20 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
+          components: clippy
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: crate
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+      - name: Cargo clippy
+        run: cargo clippy --release -- -D warnings
+        working-directory: crate
+      - name: Cargo audit
+        run: cargo audit
+        working-directory: crate
       - name: Run Rust tests
         run: cargo test --release
         working-directory: crate

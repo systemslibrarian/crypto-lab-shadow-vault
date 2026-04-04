@@ -200,7 +200,7 @@ fn derive_all_keys(
     iterations: u32,
     parallelism: u32,
 ) -> Result<ResolvedKeys, String> {
-    let slot_size = (container_size / 3) as u32;
+    let slot_size = container_size / 3;
     let slot_with_tag = slot_size + 16;
     let safe_range = container_size - slot_size - 16;
 
@@ -286,6 +286,7 @@ fn derive_all_keys(
 // ─── WASM-exported: Create container ─────────────────────────────────────
 
 #[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
 pub fn create_container(
     real_message: &str,
     decoy_message: &str,
@@ -1169,5 +1170,237 @@ If I could offer you only one tip for the future, sunscreen would be it.";
     fn max_collision_counter_locked() {
         // Changing this affects which containers can be opened.
         assert_eq!(MAX_COLLISION_COUNTER, 7);
+    }
+
+    // ── Pinned deterministic test vectors ────────────────────────────
+    // These exact hex values define the container format. If ANY of
+    // these change, all previously created containers become unreadable.
+    // Inputs: passphrase="test-vector-passphrase", memory=256 KiB,
+    //         iterations=1, parallelism=1
+
+    #[test]
+    fn pinned_vector_real_cc0() {
+        let mat = derive_key_material("test-vector-passphrase", "real", 256, 1, 1, 0).unwrap();
+        assert_eq!(
+            mat.key.iter().map(|b| format!("{:02x}", b)).collect::<String>(),
+            "613d5144a8be8d5ab21ba284f8f3afc039c8c61f80f7f60c5f389c59f0812cfa",
+            "Key derivation for real/cc0 changed — this breaks existing containers"
+        );
+        assert_eq!(
+            mat.nonce.iter().map(|b| format!("{:02x}", b)).collect::<String>(),
+            "a60ced6e00b20d75d50b4115",
+            "Nonce derivation for real/cc0 changed"
+        );
+        assert_eq!(
+            mat.offset_seeds.iter().map(|b| format!("{:02x}", b)).collect::<String>(),
+            "0ace1364f64fbceda90fd1ec451514af70af2457",
+            "Offset seeds for real/cc0 changed"
+        );
+    }
+
+    #[test]
+    fn pinned_vector_decoy_cc0() {
+        let mat = derive_key_material("test-vector-passphrase", "decoy", 256, 1, 1, 0).unwrap();
+        assert_eq!(
+            mat.key.iter().map(|b| format!("{:02x}", b)).collect::<String>(),
+            "7ebce1e61141081d4c8ecf949877d3be1fc6b551c1946a38529c5abc662f906b",
+            "Key derivation for decoy/cc0 changed — this breaks existing containers"
+        );
+        assert_eq!(
+            mat.nonce.iter().map(|b| format!("{:02x}", b)).collect::<String>(),
+            "bd66d48145f05ddfc0bdcb37",
+            "Nonce derivation for decoy/cc0 changed"
+        );
+        assert_eq!(
+            mat.offset_seeds.iter().map(|b| format!("{:02x}", b)).collect::<String>(),
+            "e88c8e5707ea53c620c9d73bb479db69433ea7e7",
+            "Offset seeds for decoy/cc0 changed"
+        );
+    }
+
+    #[test]
+    fn pinned_vector_real_cc1() {
+        let mat = derive_key_material("test-vector-passphrase", "real", 256, 1, 1, 1).unwrap();
+        assert_eq!(
+            mat.key.iter().map(|b| format!("{:02x}", b)).collect::<String>(),
+            "59ea5d7c8395f6c64c49541edd64632a1fa5b9485337557212a8b27ca53d4edc",
+            "Key derivation for real/cc1 changed — collision counter salt is format-sensitive"
+        );
+        assert_eq!(
+            mat.nonce.iter().map(|b| format!("{:02x}", b)).collect::<String>(),
+            "4a98f94d381c84d61ef713ae",
+            "Nonce derivation for real/cc1 changed"
+        );
+    }
+
+    #[test]
+    fn pinned_offset_calculation() {
+        let mat = derive_key_material("test-vector-passphrase", "real", 256, 1, 1, 0).unwrap();
+        let safe_range: u32 = 8192 - (8192 / 3) - 16;
+        assert_eq!(safe_range, 5446, "Safe range formula changed");
+        assert_eq!(
+            uniform_offset(&mat.offset_seeds, safe_range), 1392,
+            "Offset derivation changed — this breaks existing containers"
+        );
+
+        let mat2 = derive_key_material("test-vector-passphrase", "decoy", 256, 1, 1, 0).unwrap();
+        assert_eq!(
+            uniform_offset(&mat2.offset_seeds, safe_range), 4950,
+            "Decoy offset derivation changed"
+        );
+    }
+
+    // ── Corruption and malformed input tests ────────────────────────
+
+    #[test]
+    fn single_bit_flip_detected() {
+        let (container, real_off, _) = create_container_native(
+            "sensitive data", "cover story", "pass-r", "pass-d", 8192,
+        ).unwrap();
+
+        // Flip a single bit in the real message's ciphertext region
+        let mut corrupted = container.clone();
+        let flip_pos = real_off as usize + 10;
+        corrupted[flip_pos] ^= 0x01;
+        assert!(
+            open_container_native(&corrupted, "pass-r", 8192).is_none(),
+            "Single bit flip in ciphertext must be detected"
+        );
+    }
+
+    #[test]
+    fn tag_bit_flip_detected() {
+        let (container, real_off, _) = create_container_native(
+            "sensitive data", "cover story", "pass-r", "pass-d", 8192,
+        ).unwrap();
+
+        let slot_size = 8192 / 3;
+        // Flip a bit in the authentication tag (last 16 bytes of sealed slot)
+        let mut corrupted = container.clone();
+        let tag_pos = real_off as usize + slot_size as usize + 8; // middle of tag
+        corrupted[tag_pos] ^= 0x01;
+        assert!(
+            open_container_native(&corrupted, "pass-r", 8192).is_none(),
+            "Single bit flip in auth tag must be detected"
+        );
+    }
+
+    #[test]
+    fn truncated_container_rejected() {
+        let (container, _, _) = create_container_native(
+            "msg", "decoy", "pass-r", "pass-d", 8192,
+        ).unwrap();
+
+        // Truncate to invalid size
+        let truncated = &container[..4000];
+        assert!(open_container_native(truncated, "pass-r", 8192).is_none());
+    }
+
+    #[test]
+    fn all_zeros_container_no_match() {
+        let zeros = vec![0u8; 8192];
+        assert!(open_container_native(&zeros, "any-pass", 8192).is_none());
+    }
+
+    #[test]
+    fn all_ones_container_no_match() {
+        let ones = vec![0xFFu8; 8192];
+        assert!(open_container_native(&ones, "any-pass", 8192).is_none());
+    }
+
+    #[test]
+    fn container_is_full_size() {
+        // Container must always be exactly the specified size
+        for &size in &[4096u32, 8192, 16384, 32768] {
+            let (container, _, _) = create_container_native(
+                "x", "y", "pass-real-full", "pass-decoy-full", size,
+            ).unwrap();
+            assert_eq!(container.len(), size as usize);
+        }
+    }
+
+    #[test]
+    fn slot_layout_arithmetic() {
+        // Verify slot sizing invariants for all container sizes
+        for &cs in &[4096u32, 8192, 16384, 32768] {
+            let slot_size = cs / 3;
+            let slot_with_tag = slot_size + 16;
+            let safe_range = cs - slot_size - 16;
+
+            // Two slots with tags must fit in the container
+            assert!(
+                slot_with_tag * 2 <= cs,
+                "Two slots don't fit in container size {}", cs
+            );
+
+            // Max offset + slot_with_tag must not exceed container
+            assert!(
+                safe_range + slot_with_tag <= cs,
+                "Slot at max offset exceeds container for size {}", cs
+            );
+
+            // Max message length must be positive
+            assert!(slot_size > 4, "Slot size too small for container size {}", cs);
+        }
+    }
+
+    #[test]
+    fn independent_containers_differ() {
+        // Two containers with the same inputs must differ (CSPRNG padding)
+        let (c1, _, _) = create_container_native(
+            "same", "same", "pass-r", "pass-d", 4096,
+        ).unwrap();
+        let (c2, _, _) = create_container_native(
+            "same", "same", "pass-r", "pass-d", 4096,
+        ).unwrap();
+        assert_ne!(c1, c2, "Two containers must differ due to CSPRNG padding");
+    }
+
+    #[test]
+    fn container_wrong_size_parameter_fails() {
+        // Create with one size, try to open with another
+        let (container, _, _) = create_container_native(
+            "msg", "decoy", "pass-r", "pass-d", 8192,
+        ).unwrap();
+
+        // Wrong container_size parameter should fail
+        assert!(open_container_native(&container, "pass-r", 4096).is_none());
+        assert!(open_container_native(&container, "pass-r", 16384).is_none());
+    }
+
+    #[test]
+    fn many_passphrases_no_false_positive() {
+        let (container, _, _) = create_container_native(
+            "real", "decoy", "correct-real", "correct-decoy", 8192,
+        ).unwrap();
+
+        // Try 20 wrong passphrases — none should succeed
+        for i in 0..20 {
+            let wrong = format!("wrong-pass-{}", i);
+            assert!(
+                open_container_native(&container, &wrong, 8192).is_none(),
+                "False positive with passphrase '{}'", wrong
+            );
+        }
+    }
+
+    #[test]
+    fn aead_empty_plaintext() {
+        let key = [42u8; 32];
+        let nonce = [7u8; 12];
+        let sealed = aead_seal(&key, &nonce, b"").unwrap();
+        assert_eq!(sealed.len(), 16); // tag only
+        let opened = aead_open(&key, &nonce, &sealed).unwrap();
+        assert!(opened.is_empty());
+    }
+
+    #[test]
+    fn aead_large_plaintext() {
+        let key = [42u8; 32];
+        let nonce = [7u8; 12];
+        let large = vec![0xABu8; 10000];
+        let sealed = aead_seal(&key, &nonce, &large).unwrap();
+        let opened = aead_open(&key, &nonce, &sealed).unwrap();
+        assert_eq!(opened, large);
     }
 }

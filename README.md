@@ -127,6 +127,14 @@ npm run typecheck
 | [phantom-vault](https://systemslibrarian.github.io/phantom-vault/) | Argon2id + HMAC-DRBG stateless password generation |
 | [corrupted-oracle](https://systemslibrarian.github.io/corrupted-oracle/) | ChaCha20-DRBG + Dual_EC backdoor demonstration |
 
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [SPEC.md](SPEC.md) | Container format specification — derivation rules, slot layout, collision resolution, pinned test vectors |
+| [THREAT_MODEL.md](THREAT_MODEL.md) | Security boundaries, trust model, deniability constraints, honest limitations |
+| [SECURITY.md](SECURITY.md) | Security review checklist for auditors — zeroization, format integrity, failure indistinguishability |
+
 ## Data Sources
 
 - [RFC 9106 — Argon2 Memory-Hard Function](https://datatracker.ietf.org/doc/html/rfc9106)

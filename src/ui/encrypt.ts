@@ -11,6 +11,64 @@ function zeroBytes(arr: Uint8Array): void {
   arr.fill(0);
 }
 
+// ─── Passphrase strength estimator ───────────────────────────────────────
+
+interface StrengthResult {
+  bits: number;
+  label: string;
+  color: string;
+  percent: number;
+}
+
+function estimateStrength(passphrase: string): StrengthResult {
+  if (!passphrase) return { bits: 0, label: '', color: '', percent: 0 };
+
+  // Estimate character-class entropy
+  let charsetSize = 0;
+  if (/[a-z]/.test(passphrase)) charsetSize += 26;
+  if (/[A-Z]/.test(passphrase)) charsetSize += 26;
+  if (/[0-9]/.test(passphrase)) charsetSize += 10;
+  if (/[^a-zA-Z0-9]/.test(passphrase)) charsetSize += 32;
+  if (charsetSize === 0) charsetSize = 26;
+
+  const bits = Math.floor(passphrase.length * Math.log2(charsetSize));
+
+  // Penalize obvious patterns
+  const lower = passphrase.toLowerCase();
+  const penalized = /^(.)\1+$/.test(passphrase) || // all same char
+    /^(012|123|234|345|456|567|678|789|abc|bcd)/.test(lower) || // sequential
+    passphrase.length < 4;
+
+  const effectiveBits = penalized ? Math.min(bits, 20) : bits;
+
+  if (effectiveBits < 40) return { bits: effectiveBits, label: 'Weak — easily brute-forced', color: '#dc2626', percent: 20 };
+  if (effectiveBits < 60) return { bits: effectiveBits, label: 'Fair — vulnerable with Argon2id', color: '#f59e0b', percent: 40 };
+  if (effectiveBits < 80) return { bits: effectiveBits, label: 'Good — resistant to most attacks', color: '#3b82f6', percent: 65 };
+  if (effectiveBits < 100) return { bits: effectiveBits, label: 'Strong — computationally secure', color: '#10b981', percent: 85 };
+  return { bits: effectiveBits, label: 'Excellent', color: '#10b981', percent: 100 };
+}
+
+function updateStrengthUI(passphrase: string, barId: string, labelId: string): void {
+  const bar = document.getElementById(barId);
+  const label = document.getElementById(labelId);
+  if (!bar || !label) return;
+
+  const result = estimateStrength(passphrase);
+  const inner = bar.querySelector('div') as HTMLElement;
+
+  if (!passphrase) {
+    inner.style.width = '0%';
+    inner.style.backgroundColor = '';
+    label.innerHTML = '&nbsp;';
+    return;
+  }
+
+  inner.style.width = `${result.percent}%`;
+  inner.style.backgroundColor = result.color;
+  label.textContent = `~${result.bits} bits — ${result.label}`;
+  label.style.color = result.color;
+}
+
 let lastContainer: Uint8Array | null = null;
 let lastFilename = '';
 
@@ -41,8 +99,14 @@ export function initEncrypt(): void {
     updateByteCount(decoyMsg, decoyCount);
     validateForm();
   });
-  realPass.addEventListener('input', validateForm);
-  decoyPass.addEventListener('input', validateForm);
+  realPass.addEventListener('input', () => {
+    updateStrengthUI(realPass.value, 'real-strength-bar', 'real-strength-label');
+    validateForm();
+  });
+  decoyPass.addEventListener('input', () => {
+    updateStrengthUI(decoyPass.value, 'decoy-strength-bar', 'decoy-strength-label');
+    validateForm();
+  });
 
   function getContainerSize(): ContainerSize {
     const checked = document.querySelector('input[name="container-size"]:checked') as HTMLInputElement;
