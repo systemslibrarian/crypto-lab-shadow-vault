@@ -1,7 +1,7 @@
 /**
  * Encrypt flow UI — handles encrypt panel interactions.
  */
-import { createContainer, downloadContainer, getMaxMessageLength } from '../crypto/container.js';
+import { createContainer, downloadContainer, getMaxMessageLength } from '../crypto/wasm.js';
 import type { VaultConfig, ContainerSize } from '../types/vault.js';
 import { getParams } from './params.js';
 import { renderVisualizer, hideVisualizer } from './visualizer.js';
@@ -125,7 +125,7 @@ export function initEncrypt(): void {
       argon2Params: getParams(),
     };
 
-    let currentStep: HTMLElement | null = null;
+    const workingStep = addStep('Deriving keys & encrypting (Rust/WASM)...');
 
     try {
       const result = await createContainer(
@@ -134,17 +134,11 @@ export function initEncrypt(): void {
         realPass.value,
         decoyPass.value,
         config,
-        (step: string) => {
-          if (currentStep) markStepDone(currentStep);
-          currentStep = addStep(step);
-        },
       );
 
-      if (currentStep) markStepDone(currentStep);
+      markStepDone(workingStep);
 
-      const summary = addStep(
-        `Complete — real: ${result.derivationMs.real.toFixed(0)}ms, decoy: ${result.derivationMs.decoy.toFixed(0)}ms`
-      );
+      const summary = addStep('Container created.');
       markStepDone(summary);
 
       // Store container for download
@@ -166,13 +160,8 @@ export function initEncrypt(): void {
       realCount.textContent = '0';
       decoyCount.textContent = '0';
     } catch (err: unknown) {
-      if (currentStep) {
-        (currentStep as HTMLElement).className = 'text-vault-danger';
-        (currentStep as HTMLElement).textContent = `✗ ${err instanceof Error ? err.message : 'Unknown error'}`;
-      } else {
-        encryptError.textContent = err instanceof Error ? err.message : 'Unknown error';
-        encryptError.classList.remove('hidden');
-      }
+      workingStep.className = 'text-vault-danger';
+      workingStep.textContent = `✗ ${err instanceof Error ? err.message : 'Unknown error'}`;
     } finally {
       btnEncrypt.textContent = 'CREATE VAULT';
       btnEncrypt.disabled = false;

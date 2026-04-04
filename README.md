@@ -42,10 +42,13 @@ The UI makes this explicit: tune the Argon2id parameters down and watch the deri
 
 | Component | Implementation | Reference |
 |-----------|---------------|-----------|
-| Key derivation | Argon2id (WASM via argon2-browser) | [RFC 9106](https://datatracker.ietf.org/doc/html/rfc9106) |
-| Symmetric encryption | ChaCha20-Poly1305 AEAD | [RFC 8439](https://datatracker.ietf.org/doc/html/rfc8439) |
-| Random generation | Web Crypto API (`crypto.getRandomValues`) | [W3C Web Crypto](https://www.w3.org/TR/WebCryptoAPI/) |
-| Salt derivation | SHA-256 (deterministic from role) | [FIPS 180-4](https://csrc.nist.gov/publications/detail/fips/180/4/final) |
+| Key derivation | Argon2id (Rust → WASM, `argon2` crate) | [RFC 9106](https://datatracker.ietf.org/doc/html/rfc9106) |
+| Symmetric encryption | ChaCha20-Poly1305 AEAD (Rust → WASM, `chacha20poly1305` crate) | [RFC 8439](https://datatracker.ietf.org/doc/html/rfc8439) |
+| Memory zeroing | Guaranteed via `zeroize` crate (compiler barriers) | [zeroize](https://docs.rs/zeroize) |
+| Random generation | `getrandom` crate (backed by Web Crypto API in WASM) | [W3C Web Crypto](https://www.w3.org/TR/WebCryptoAPI/) |
+| Salt derivation | SHA-256 (deterministic from role, `sha2` crate) | [FIPS 180-4](https://csrc.nist.gov/publications/detail/fips/180/4/final) |
+
+**All cryptographic operations run in a Web Worker** — key material never leaves WASM linear memory. The RustCrypto crates (`argon2`, `chacha20poly1305`) are community-audited implementations. The `zeroize` crate uses `volatile` writes to guarantee sensitive memory is zeroed before deallocation, which JavaScript's `fill(0)` cannot guarantee.
 
 **Argon2id parameters (default):**
 - Memory: 64 MB (65536 KiB) — RFC 9106 minimum for interactive use
@@ -53,7 +56,7 @@ The UI makes this explicit: tune the Argon2id parameters down and watch the deri
 - Parallelism: 4
 - Output: 64 bytes (key + nonce + offset seed)
 
-**ChaCha20-Poly1305:** Implemented in pure TypeScript per RFC 8439. Verified against all RFC test vectors on every app load (§2.3.2, §2.4.2, §2.5.2, §2.8.2). WebCrypto does not expose ChaCha20-Poly1305 — AES-GCM is not a substitute for this use case.
+**ChaCha20-Poly1305:** Implemented in Rust via the `chacha20poly1305` crate (RustCrypto). Verified against RFC 8439 test vectors on every app load. All crypto runs in a Web Worker via WASM — the main thread never handles key material.
 
 ## What This Cannot Protect Against
 
@@ -61,12 +64,14 @@ The UI makes this explicit: tune the Argon2id parameters down and watch the deri
 - **Keyloggers** or compromised devices capturing passphrases
 - **Coercion with violence** (rubber-hose cryptanalysis)
 - **Metadata** outside the container — filenames, timestamps, access logs, browser history
-- **Browser memory** not being securely wiped (JavaScript has no `memset_s`)
+- **Browser memory** — passphrases enter as JavaScript strings (immutable, GC'd) before crossing to WASM. Rust/WASM zeroes all key material deterministically, but passphrase strings in JS are unavoidable.
 - **Traffic analysis** if the container is transmitted over a network
 
 ## Honest Limitations
 
-Shadow Vault is a **demonstration of deniable encryption concepts**, not production-grade deniable storage. The ChaCha20-Poly1305 implementation is RFC-verified but has not undergone a formal security audit. Browser-based cryptography inherits all the limitations of the browser security model.
+Shadow Vault uses **audited RustCrypto crates** compiled to WASM, but the integration and container format have not undergone a formal security audit. Browser-based cryptography inherits all the limitations of the browser security model (extensions, devtools, OS-level attacks).
+
+Passphrases still enter via HTML `<input>` elements as immutable JavaScript strings — Rust/WASM cannot zero those. Everything else (keys, nonces, salts, plaintext slots) is zeroed deterministically via the `zeroize` crate.
 
 For real-world deniable encryption, use [VeraCrypt](https://veracrypt.fr) with hidden volumes.
 
@@ -74,24 +79,35 @@ For real-world deniable encryption, use [VeraCrypt](https://veracrypt.fr) with h
 
 | Layer | Technology |
 |-------|-----------|
-| Build | Vite + TypeScript (strict mode) |
+| Crypto core | Rust → WASM (`argon2`, `chacha20poly1305`, `zeroize` crates) |
+| Build (WASM) | `wasm-pack` + `wasm-bindgen` |
+| Build (frontend) | Vite + TypeScript (strict mode) |
 | Styling | Tailwind CSS |
-| Key derivation | argon2-browser (Argon2id WASM) |
-| Symmetric crypto | ChaCha20-Poly1305 (pure TypeScript, RFC 8439) |
 | Deployment | GitHub Pages via Actions |
 | Persistence | None — zero backend, zero storage |
 
 ## Local Setup
 
+**Prerequisites:** Rust toolchain + `wasm-pack`
+
+```bash
+# Install Rust (if not already installed)
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+rustup target add wasm32-unknown-unknown
+cargo install wasm-pack
+```
+
 ```bash
 git clone https://github.com/systemslibrarian/shadow-vault.git
 cd shadow-vault
 npm install
-npm run dev
+npm run wasm     # Build Rust crypto → WASM
+npm run dev      # Start dev server
 ```
 
 Build for production:
 ```bash
+npm run wasm     # Must run before build
 npm run build    # outputs to out/
 ```
 

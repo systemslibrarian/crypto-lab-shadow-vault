@@ -1,9 +1,8 @@
 /**
  * Argon2id parameter tuning panel UI.
  */
-import { validateParams, benchmarkArgon2 } from '../crypto/argon2.js';
 import type { Argon2Params } from '../types/vault.js';
-import { RECOMMENDED_PARAMS } from '../types/vault.js';
+import { RECOMMENDED_PARAMS, validateParams } from '../types/vault.js';
 
 let currentParams: Argon2Params = { ...RECOMMENDED_PARAMS };
 
@@ -85,13 +84,13 @@ export function initParams(): void {
   }
 
   async function runBenchmark() {
-    estimate.textContent = '...measuring';
-    try {
-      const ms = await benchmarkArgon2(currentParams);
-      estimate.textContent = `~${(ms / 1000).toFixed(1)}s`;
-    } catch {
-      estimate.textContent = 'error';
-    }
+    // Rough estimate based on params — actual timing depends on hardware.
+    // Argon2id with 64MB/3iter/4par typically takes 1-3s in WASM.
+    const memFactor = currentParams.memory / 65536;
+    const iterFactor = currentParams.iterations / 3;
+    const baseMs = 1500; // ~1.5s baseline for 64MB/3iter
+    const estimatedMs = baseMs * memFactor * iterFactor;
+    estimate.textContent = `~${(estimatedMs / 1000).toFixed(1)}s (est.)`;
   }
 
   memSlider.addEventListener('input', updateDisplay);

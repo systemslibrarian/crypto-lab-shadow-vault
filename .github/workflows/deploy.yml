@@ -18,6 +18,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # --- Rust / WASM build ---
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crate
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - name: Build WASM crypto core
+        run: wasm-pack build --target web --out-dir ../pkg --release
+        working-directory: crate
+      - name: Copy WASM to public
+        run: |
+          cp pkg/shadow_vault_crypto_bg.wasm public/
+          cp pkg/shadow_vault_crypto.js public/
+
+      # --- Node.js / Vite build ---
       - uses: actions/setup-node@v4
         with:
           node-version: 22

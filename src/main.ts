@@ -1,31 +1,41 @@
 /**
  * Shadow Vault — main entry point.
- * Initializes crypto self-test, UI modules, and security cleanup.
+ * Initializes WASM crypto worker, self-test, UI modules, and security cleanup.
  */
 import './style.css';
-import { runSelfTest } from './crypto/chacha20poly1305.js';
+import { initCrypto } from './crypto/wasm.js';
 import { initTabs } from './ui/tabs.js';
 import { initEncrypt } from './ui/encrypt.js';
 import { initDecrypt } from './ui/decrypt.js';
 import { initParams } from './ui/params.js';
 
-// --- Self-test on load ---
-function initSelfTest(): void {
+// --- WASM init + self-test ---
+async function initSelfTest(): Promise<void> {
   const statusEl = document.getElementById('self-test-status')!;
-  const result = runSelfTest();
+  statusEl.textContent = '⏳ Loading crypto engine (Rust/WASM)...';
 
-  if (result.passed) {
-    statusEl.textContent = '\u2705 Crypto self-test passed (ChaCha20-Poly1305 RFC 8439)';
-    statusEl.classList.add('text-vault-success');
-  } else {
-    statusEl.textContent = '\u274c ChaCha20-Poly1305 self-test FAILED \u2014 do not use this tool';
+  try {
+    const result = await initCrypto();
+
+    if (result.passed) {
+      statusEl.textContent = '✅ Crypto self-test passed (ChaCha20-Poly1305 · Rust/WASM)';
+      statusEl.classList.add('text-vault-success');
+    } else {
+      statusEl.textContent = '❌ ChaCha20-Poly1305 self-test FAILED — do not use this tool';
+      statusEl.classList.add('text-vault-danger');
+      const btnEncrypt = document.getElementById('btn-encrypt') as HTMLButtonElement;
+      const btnDecrypt = document.getElementById('btn-decrypt') as HTMLButtonElement;
+      if (btnEncrypt) btnEncrypt.disabled = true;
+      if (btnDecrypt) btnDecrypt.disabled = true;
+      console.error('Self-test failures:', result.failures);
+    }
+  } catch (err) {
+    statusEl.textContent = `❌ Crypto engine failed to load: ${err instanceof Error ? err.message : 'unknown error'}`;
     statusEl.classList.add('text-vault-danger');
-    // Disable encrypt/decrypt buttons
     const btnEncrypt = document.getElementById('btn-encrypt') as HTMLButtonElement;
     const btnDecrypt = document.getElementById('btn-decrypt') as HTMLButtonElement;
     if (btnEncrypt) btnEncrypt.disabled = true;
     if (btnDecrypt) btnDecrypt.disabled = true;
-    console.error('Self-test failures:', result.failures);
   }
 }
 
@@ -109,8 +119,7 @@ function initSecurityCleanup(): void {
 }
 
 // --- Init ---
-document.addEventListener('DOMContentLoaded', () => {
-  initSelfTest();
+document.addEventListener('DOMContentLoaded', async () => {
   initTabs();
   initParams();
   initEncrypt();
@@ -118,4 +127,5 @@ document.addEventListener('DOMContentLoaded', () => {
   initModal();
   initPasswordToggles();
   initSecurityCleanup();
+  await initSelfTest();
 });

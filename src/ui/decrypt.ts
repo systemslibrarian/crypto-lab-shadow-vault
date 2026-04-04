@@ -1,7 +1,7 @@
 /**
  * Decrypt flow UI — handles decrypt panel interactions.
  */
-import { openContainer, uploadContainer } from '../crypto/container.js';
+import { openContainer, uploadContainer } from '../crypto/wasm.js';
 import type { VaultConfig, ContainerSize } from '../types/vault.js';
 import { getParams } from './params.js';
 
@@ -17,7 +17,6 @@ export function initDecrypt(): void {
   const resultEl = document.getElementById('decrypt-result')!;
   const messageEl = document.getElementById('decrypted-message')!;
   const btnCopy = document.getElementById('btn-copy')!;
-  const decryptTime = document.getElementById('decrypt-time')!;
   const offsetBar = document.getElementById('decrypt-offset-bar')!;
 
   let loadedContainer: Uint8Array | null = null;
@@ -107,20 +106,16 @@ export function initDecrypt(): void {
       argon2Params: getParams(),
     };
 
-    let currentStep: HTMLElement | null = null;
+    const workingStep = addStep('Deriving key & searching slots (Rust/WASM)...');
 
     try {
       const result = await openContainer(
         loadedContainer,
         passInput.value,
         config,
-        (step: string) => {
-          if (currentStep) markStepDone(currentStep);
-          currentStep = addStep(step);
-        },
       );
 
-      if (currentStep) markStepDone(currentStep);
+      markStepDone(workingStep);
 
       if (result.success && result.message !== undefined) {
         const done = addStep('Message decrypted.');
@@ -128,7 +123,6 @@ export function initDecrypt(): void {
 
         resultEl.classList.remove('hidden');
         messageEl.textContent = result.message;
-        decryptTime.textContent = `${(result.derivationMs / 1000).toFixed(1)}s`;
 
         // Offset bar — visual only, no numeric value
         const barInner = offsetBar.querySelector('span')!;
@@ -143,10 +137,8 @@ export function initDecrypt(): void {
       // Clear passphrase from memory
       passInput.value = '';
     } catch (err: unknown) {
-      if (currentStep) {
-        (currentStep as HTMLElement).className = 'text-vault-danger';
-        (currentStep as HTMLElement).textContent = `✗ ${err instanceof Error ? err.message : 'Unknown error'}`;
-      }
+      workingStep.className = 'text-vault-danger';
+      workingStep.textContent = `✗ ${err instanceof Error ? err.message : 'Unknown error'}`;
     } finally {
       btnDecrypt.textContent = 'OPEN VAULT';
       validateForm();

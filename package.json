@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "wasm": "cd crate && wasm-pack build --target web --out-dir ../pkg --release && cp ../pkg/shadow_vault_crypto_bg.wasm ../public/ && cp ../pkg/shadow_vault_crypto.js ../public/",
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
@@ -18,8 +19,5 @@
     "tailwindcss": "^3.4.19",
     "typescript": "~5.9.3",
     "vite": "^8.0.1"
-  },
-  "dependencies": {
-    "argon2-browser": "^1.18.0"
   }
 }
