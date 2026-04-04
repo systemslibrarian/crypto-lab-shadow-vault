@@ -22,6 +22,7 @@ use zeroize::Zeroize;
 
 const MAX_COLLISION_COUNTER: u32 = 7;
 const AAD: &[u8] = b"shadow-vault:v1";
+const VALID_CONTAINER_SIZES: [u32; 4] = [4096, 8192, 16384, 32768];
 
 // ─── Derived key material (zeroized on drop) ────────────────────────────
 
@@ -327,6 +328,9 @@ pub fn create_container(
     iterations: u32,
     parallelism: u32,
 ) -> Result<JsValue, JsValue> {
+    if !VALID_CONTAINER_SIZES.contains(&container_size) {
+        return Err(JsValue::from_str("Invalid container size"));
+    }
     let slot_size = (container_size / 3) as usize;
 
     // Fill container with CSPRNG random bytes
@@ -398,6 +402,9 @@ pub fn open_container(
     iterations: u32,
     parallelism: u32,
 ) -> Result<JsValue, JsValue> {
+    if !VALID_CONTAINER_SIZES.contains(&container_size) {
+        return Err(JsValue::from_str("Invalid container size"));
+    }
     let slot_size = (container_size / 3) as usize;
     let safe_range = container_size - (container_size / 3) - 16;
 
@@ -927,6 +934,9 @@ If I could offer you only one tip for the future, sunscreen would be it.";
         decoy_pass: &str,
         container_size: u32,
     ) -> Result<(Vec<u8>, u32, u32), String> {
+        if !VALID_CONTAINER_SIZES.contains(&container_size) {
+            return Err(format!("Invalid container size: {}", container_size));
+        }
         let slot_size = (container_size / 3) as usize;
 
         let mut container = vec![0u8; container_size as usize];
@@ -1250,6 +1260,20 @@ If I could offer you only one tip for the future, sunscreen would be it.";
     fn max_collision_counter_locked() {
         // Changing this affects which containers can be opened.
         assert_eq!(MAX_COLLISION_COUNTER, 7);
+    }
+
+    #[test]
+    fn valid_container_sizes_locked() {
+        assert_eq!(VALID_CONTAINER_SIZES, [4096, 8192, 16384, 32768]);
+    }
+
+    #[test]
+    fn create_container_rejects_invalid_size() {
+        // Invalid sizes must fail in Rust, not just JS
+        for &bad_size in &[0u32, 1, 3, 100, 4095, 4097, 8191, 8193, 65536] {
+            let result = create_container_native("msg", "decoy", "p1", "p2", bad_size);
+            assert!(result.is_err(), "Size {} should be rejected", bad_size);
+        }
     }
 
     // ── Pinned deterministic test vectors ────────────────────────────
