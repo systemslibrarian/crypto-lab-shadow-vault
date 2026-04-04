@@ -98,6 +98,7 @@ export function initDecrypt(): void {
     btnDecrypt.textContent = 'OPENING...';
     decryptError.classList.add('hidden');
     resultEl.classList.add('hidden');
+    messageEl.textContent = ''; // Clear previous decrypted message
     progressEl.classList.remove('hidden');
     stepsEl.innerHTML = '';
 
@@ -131,7 +132,7 @@ export function initDecrypt(): void {
 
         // Offset bar — visual only, no numeric value
         const barInner = offsetBar.querySelector('span')!;
-        const pct = result.offsetPercent ?? Math.floor(Math.random() * 80 + 10);
+        const pct = result.offsetPercent ?? 0;
         barInner.style.width = `${pct}%`;
       } else {
         const fail = addStep('No message found for this passphrase.');

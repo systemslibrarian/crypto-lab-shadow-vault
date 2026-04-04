@@ -77,10 +77,19 @@ function initPasswordToggles(): void {
 // --- Security: clear passphrases on unload ---
 function initSecurityCleanup(): void {
   window.addEventListener('beforeunload', () => {
+    // Clear all password/text inputs
     const inputs = document.querySelectorAll('input[type="password"], input[type="text"]');
     inputs.forEach(input => {
       (input as HTMLInputElement).value = '';
     });
+    // Clear all textareas (message inputs)
+    const textareas = document.querySelectorAll('textarea');
+    textareas.forEach(ta => {
+      (ta as HTMLTextAreaElement).value = '';
+    });
+    // Clear decrypted message display
+    const msgEl = document.getElementById('decrypted-message');
+    if (msgEl) msgEl.textContent = '';
   });
 }
 

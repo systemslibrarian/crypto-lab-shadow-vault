@@ -4,7 +4,12 @@
 import { createContainer, downloadContainer, getMaxMessageLength } from '../crypto/container.js';
 import type { VaultConfig, ContainerSize } from '../types/vault.js';
 import { getParams } from './params.js';
-import { renderVisualizer } from './visualizer.js';
+import { renderVisualizer, hideVisualizer } from './visualizer.js';
+
+/** Securely zero a Uint8Array */
+function zeroBytes(arr: Uint8Array): void {
+  arr.fill(0);
+}
 
 let lastContainer: Uint8Array | null = null;
 let lastFilename = '';
@@ -104,6 +109,13 @@ export function initEncrypt(): void {
     progressEl.classList.remove('hidden');
     stepsEl.innerHTML = '';
     downloadSection.classList.add('hidden');
+    hideVisualizer();
+
+    // Zero previous container if it exists
+    if (lastContainer) {
+      zeroBytes(lastContainer);
+      lastContainer = null;
+    }
 
     const config: VaultConfig = {
       containerSize: getContainerSize(),
@@ -143,9 +155,13 @@ export function initEncrypt(): void {
       downloadSection.classList.remove('hidden');
       downloadFilename.textContent = lastFilename;
 
-      // Clear passphrases from inputs for security
+      // Clear sensitive inputs for security
       realPass.value = '';
       decoyPass.value = '';
+      realMsg.value = '';
+      decoyMsg.value = '';
+      realCount.textContent = '0';
+      decoyCount.textContent = '0';
     } catch (err: unknown) {
       if (currentStep) {
         (currentStep as HTMLElement).className = 'text-vault-danger';
@@ -164,6 +180,10 @@ export function initEncrypt(): void {
   btnDownload.addEventListener('click', () => {
     if (lastContainer) {
       downloadContainer(lastContainer, lastFilename);
+      // Zero and discard container after download
+      zeroBytes(lastContainer);
+      lastContainer = null;
+      downloadSection.classList.add('hidden');
     }
   });
 }

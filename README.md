@@ -2,6 +2,8 @@
 
 **Deniable encryption — two messages, one container, no trace.**
 
+**[Live Demo](https://systemslibrarian.github.io/shadow-vault/)**
+
 You are detained. They demand your passphrase. You comply. They decrypt a plausible message — a grocery list, a journal entry, a note to a friend. What they cannot prove, cannot detect, and cannot even test for: a second encrypted message hidden at a different offset in the same container, decryptable only with a different passphrase they don't know exists.
 
 Shadow Vault is a browser-based demonstration of deniable encryption using a fixed-size container that holds two independently encrypted messages. The real passphrase decrypts the real message. The decoy passphrase decrypts the decoy. The container is structurally indistinguishable from random bytes — there are no headers, no magic bytes, no length fields, no forensic fingerprint.

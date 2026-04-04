@@ -66,12 +66,21 @@ export function renderVisualizer(
   });
 
   // Labels
-  statsEl.innerHTML = `
-    ${containerSize.toLocaleString()} bytes total —
-    <span class="text-vault-crimson">■</span> real message
-    <span class="text-vault-amber ml-2">■</span> decoy message
-    <span class="text-vault-text-muted ml-2">■</span> ${paddingBytes.toLocaleString()} bytes indistinguishable padding
-  `;
+  statsEl.textContent = '';
+  const totalText = document.createTextNode(`${containerSize.toLocaleString()} bytes total \u2014 `);
+  const realSpan = document.createElement('span');
+  realSpan.className = 'text-vault-crimson';
+  realSpan.textContent = '\u25A0';
+  const realLabel = document.createTextNode(' real message ');
+  const decoySpan = document.createElement('span');
+  decoySpan.className = 'text-vault-amber ml-2';
+  decoySpan.textContent = '\u25A0';
+  const decoyLabel = document.createTextNode(' decoy message ');
+  const padSpan = document.createElement('span');
+  padSpan.className = 'text-vault-text-muted ml-2';
+  padSpan.textContent = '\u25A0';
+  const padLabel = document.createTextNode(` ${paddingBytes.toLocaleString()} bytes indistinguishable padding`);
+  statsEl.append(totalText, realSpan, realLabel, decoySpan, decoyLabel, padSpan, padLabel);
 }
 
 export function hideVisualizer(): void {

@@ -21,6 +21,11 @@ import { VALID_CONTAINER_SIZES } from '../types/vault.js';
 
 const AAD = new TextEncoder().encode('shadow-vault:v1');
 
+/** Securely zero a Uint8Array */
+function zeroBytes(arr: Uint8Array): void {
+  arr.fill(0);
+}
+
 function encodeSlot(message: string, slotSize: number): Uint8Array {
   const msgBytes = new TextEncoder().encode(message);
   if (msgBytes.length > slotSize - 4) {
@@ -78,13 +83,21 @@ export async function createContainer(
   onProgress('Encrypting real message...');
   const realSlot = encodeSlot(realMessage, slotSize);
   const realSealed = chachaPoly1305Seal(keys.real.key, keys.real.nonce, realSlot, AAD);
+  zeroBytes(realSlot);
   container.set(realSealed, keys.real.offset);
 
   // Step 4: Encode and encrypt decoy message
   onProgress('Encrypting decoy message...');
   const decoySlot = encodeSlot(decoyMessage, slotSize);
   const decoySealed = chachaPoly1305Seal(keys.decoy.key, keys.decoy.nonce, decoySlot, AAD);
+  zeroBytes(decoySlot);
   container.set(decoySealed, keys.decoy.offset);
+
+  // Zero key material after use
+  zeroBytes(keys.real.key);
+  zeroBytes(keys.real.nonce);
+  zeroBytes(keys.decoy.key);
+  zeroBytes(keys.decoy.nonce);
 
   onProgress('Container created.');
 
@@ -125,13 +138,21 @@ export async function openContainer(
       if (plaintext !== null) {
         try {
           const message = decodeSlot(plaintext);
+          zeroBytes(plaintext);
+          // Zero key material after successful decryption
+          zeroBytes(material.key);
+          zeroBytes(material.nonce);
           // Calculate offset percentage for visual indicator (no exact number)
           const offsetPercent = Math.round((offset / safeRange) * 100);
           return { success: true, message, derivationMs: durationMs, offsetPercent };
         } catch {
           // Slot decoded but data invalid — continue trying
+          zeroBytes(plaintext);
         }
       }
+      // Zero key material for failed attempts
+      zeroBytes(material.key);
+      zeroBytes(material.nonce);
     }
   }
 

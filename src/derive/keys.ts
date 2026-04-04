@@ -32,6 +32,7 @@ export async function deriveAllKeys(
   onProgress('decoy', false);
   let decoyResult = await deriveKeyMaterial(decoyPassphrase, 'decoy', config.argon2Params, 0);
   let decoyOffset = decoyResult.material.offsetSeed % safeRange;
+  let decoyTotalMs = decoyResult.durationMs;
   onProgress('decoy', true);
 
   // Collision resolution — if slots overlap (within slotSize + 16 bytes),
@@ -44,6 +45,7 @@ export async function deriveAllKeys(
     // Re-derive the decoy with collision counter
     decoyResult = await deriveKeyMaterial(decoyPassphrase, 'decoy', config.argon2Params, attempt);
     decoyOffset = decoyResult.material.offsetSeed % safeRange;
+    decoyTotalMs += decoyResult.durationMs;
   }
 
   if (Math.abs(realOffset - decoyOffset) < slotSize + 16) {
@@ -57,6 +59,6 @@ export async function deriveAllKeys(
     real: { ...realResult.material, offset: realOffset },
     decoy: { ...decoyResult.material, offset: decoyOffset },
     collisionResolved,
-    derivationMs: { real: realResult.durationMs, decoy: decoyResult.durationMs },
+    derivationMs: { real: realResult.durationMs, decoy: decoyTotalMs },
   };
 }

@@ -7,18 +7,36 @@ export function initTabs(): void {
   const panelEncrypt = document.getElementById('panel-encrypt')!;
   const panelDecrypt = document.getElementById('panel-decrypt')!;
 
-  function activate(tab: HTMLElement, panel: HTMLElement, other: HTMLElement, otherPanel: HTMLElement) {
-    tab.setAttribute('aria-selected', 'true');
-    tab.classList.add('border-vault-crimson', 'text-vault-text');
-    tab.classList.remove('border-transparent', 'text-vault-text-dim');
-    panel.classList.remove('hidden');
+  const tabs = [tabEncrypt, tabDecrypt];
+  const panels = [panelEncrypt, panelDecrypt];
 
-    other.setAttribute('aria-selected', 'false');
-    other.classList.remove('border-vault-crimson', 'text-vault-text');
-    other.classList.add('border-transparent', 'text-vault-text-dim');
-    otherPanel.classList.add('hidden');
+  function activate(index: number) {
+    tabs.forEach((tab, i) => {
+      const isActive = i === index;
+      tab.setAttribute('aria-selected', String(isActive));
+      tab.setAttribute('tabindex', isActive ? '0' : '-1');
+      tab.classList.toggle('border-vault-crimson', isActive);
+      tab.classList.toggle('text-vault-text', isActive);
+      tab.classList.toggle('border-transparent', !isActive);
+      tab.classList.toggle('text-vault-text-dim', !isActive);
+      panels[i].classList.toggle('hidden', !isActive);
+    });
+    tabs[index].focus();
   }
 
-  tabEncrypt.addEventListener('click', () => activate(tabEncrypt, panelEncrypt, tabDecrypt, panelDecrypt));
-  tabDecrypt.addEventListener('click', () => activate(tabDecrypt, panelDecrypt, tabEncrypt, panelEncrypt));
+  tabEncrypt.addEventListener('click', () => activate(0));
+  tabDecrypt.addEventListener('click', () => activate(1));
+
+  // Keyboard navigation per WAI-ARIA tabs pattern
+  tabs.forEach((tab, index) => {
+    tab.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        const next = e.key === 'ArrowRight'
+          ? (index + 1) % tabs.length
+          : (index - 1 + tabs.length) % tabs.length;
+        activate(next);
+      }
+    });
+  });
 }

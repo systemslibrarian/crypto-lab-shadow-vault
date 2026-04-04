@@ -69,9 +69,14 @@ export function initParams(): void {
     const errors = validateParams(currentParams);
     if (errors.length > 0) {
       warnings.classList.remove('hidden');
-      warnings.innerHTML = errors.map(e => `⚠ ${e}`).join('<br>');
+      warnings.textContent = '';
+      errors.forEach((e, i) => {
+        if (i > 0) warnings.appendChild(document.createElement('br'));
+        warnings.appendChild(document.createTextNode(`\u26A0 ${e}`));
+      });
     } else {
       warnings.classList.add('hidden');
+      warnings.textContent = '';
     }
 
     // Debounce benchmark
