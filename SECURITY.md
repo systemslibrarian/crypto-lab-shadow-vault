@@ -165,3 +165,19 @@ This checklist is for auditors, reviewers, and contributors evaluating the secur
 - [ ] **Documentation is honest about limitations**
   - Modal, README, THREAT_MODEL.md all state this is a demonstration
   - VeraCrypt recommended for production use
+
+---
+
+## 8. Known Limitations
+
+These are inherent design constraints that cannot be fixed without breaking changes:
+
+- **Deterministic offsets across containers:** Same passphrases + same Argon2id params always produce the same slot offsets and key material. Reusing passphrases across multiple containers enables a two-time pad attack that reveals slot positions and XOR of plaintexts. **Mitigation:** Never reuse passphrases. See THREAT_MODEL.md §2.6.
+
+- **Unicode normalization not performed:** Passphrases are passed as raw UTF-8 bytes. Different Unicode representations of the same visual character (NFC vs NFD) produce different Argon2id output, making containers potentially unopenable across platforms. **Mitigation:** Use ASCII-only passphrases. See THREAT_MODEL.md §2.7.
+
+- **JavaScript string immutability:** Passphrases and messages enter as JavaScript strings which cannot be securely zeroed. The GC manages their lifetime. Defense-in-depth (input clearing, Worker cleanup) reduces exposure but cannot guarantee erasure. See THREAT_MODEL.md §2.2.
+
+- **Google Fonts external dependency:** The CSP allows `fonts.googleapis.com` and `fonts.gstatic.com`. This creates a privacy/tracking vector. Fonts do not carry executable code but the CSS request reveals the user's IP address to Google. A fully offline deployment would need to self-host the fonts.
+
+- **Clipboard not fully controlled:** The clipboard clear (30s after copy) uses `navigator.clipboard.writeText('')`. The OS clipboard may retain copies, and clipboard managers may archive the content before the clear fires.

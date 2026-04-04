@@ -61,7 +61,8 @@ Passphrases enter the system as JavaScript strings, which are:
 
 ### 2.3 Side-channel attacks
 
-- **Timing:** Argon2id timing is deterministic for given parameters, but JavaScript/WASM execution timing varies by browser, load, and GC pressure. No constant-time guarantees exist for the JS bridge.
+- **Timing:** The `open_container` function always performs all 16 Argon2id derivations (2 roles × 8 collision counters) before checking AEAD matches. This makes the Argon2id phase constant-time for all inputs — success, failure, real passphrase, and decoy passphrase are timing-indistinguishable at the key derivation level. AEAD checks are microseconds and do not contribute measurable timing variation.
+- **JavaScript bridge:** WASM execution timing varies by browser, load, and GC pressure. Minor microsecond-level variations in the AEAD check phase cannot be fully eliminated but are masked by the dominant Argon2id cost (~1.5s per derivation with default parameters).
 - **Power/EM:** Not applicable to a browser threat model.
 - **Cache timing:** WASM execution may leak information through cache timing, but exploiting this requires local access (which already breaks the model — see §2.1).
 
@@ -83,13 +84,27 @@ Physical coercion cannot be solved with cryptography. If an adversary uses viole
 
 Deniability helps only if the adversary *believes* the decoy passphrase is the only passphrase.
 
-### 2.6 Multi-snapshot analysis
+### 2.6 Multi-container analysis (deterministic offsets)
 
-If an adversary obtains multiple container snapshots (e.g., cloud backups) encrypted with the same passphrases but different messages, they can diff the containers and identify which byte ranges change. This breaks deniability by revealing that two independent slots exist.
+Slot offsets are deterministic: the same (passphrase, role, Argon2id params) always produces the same (key, nonce, offset). If a user creates multiple containers with the same passphrases:
 
-**Mitigation:** Never reuse the same passphrases for different messages. Each container should use fresh, unique passphrases.
+1. **Nonce reuse:** Both containers use the same ChaCha20-Poly1305 key and nonce for the same slot. XOR of the two ciphertexts at the deterministic offset produces XOR of the two plaintexts — a classic two-time pad. If the same message was encrypted both times, the XOR is mostly zeros at the slot position, immediately revealing the offset.
 
-### 2.7 Supply-chain attacks
+2. **Slot position confirmation:** An adversary with two containers and one passphrase can compute the known slot offset, then XOR both containers at every other position. At the unknown slot's deterministic offset, the XOR shows structure (e.g., matching 4-byte length prefixes) instead of random data, confirming the second slot's existence and location.
+
+3. **Deniability collapse:** Once the adversary confirms two slots exist in multiple containers at the same offsets, deniability is broken for *all* containers sharing those passphrases.
+
+**Root cause:** The container format is headerless — there is no space to store a per-container random salt. The CSPRNG fill provides uniqueness for the padding, but the key material and offsets are passphrase-deterministic by design (required for decryption without stored metadata).
+
+**Mitigation:** Never reuse passphrases across containers. Each container MUST use unique passphrases. This is an inherent limitation of the headerless format and cannot be fixed without a breaking format change.
+
+### 2.7 Unicode normalization
+
+Passphrases are passed to Argon2id as raw UTF-8 bytes with no Unicode normalization (NFC/NFD). The same visual character can have multiple byte representations: `é` (U+00E9, 2 bytes) vs `e` + combining acute (U+0065 U+0301, 3 bytes). Different operating systems and input methods may produce different forms, making containers created on one platform unopenable on another.
+
+**Mitigation:** Users should use ASCII-only passphrases for maximum portability. Implementing Unicode PRECIS (RFC 8265) normalization is a potential future improvement but adds complexity and dependencies.
+
+### 2.8 Supply-chain attacks
 
 Shadow Vault is served as static files from GitHub Pages. If the repository, CI pipeline, or CDN is compromised, the served code could be modified to exfiltrate passphrases.
 
