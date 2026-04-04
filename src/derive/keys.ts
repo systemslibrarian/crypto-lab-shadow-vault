@@ -17,6 +17,13 @@ function slotsOverlap(offsetA: number, offsetB: number, slotWithTag: number): bo
   return Math.abs(offsetA - offsetB) < slotWithTag;
 }
 
+/** Zero all Uint8Array fields of a DerivedKeyMaterial */
+function zeroMaterial(m: DerivedKeyMaterial): void {
+  m.key.fill(0);
+  m.nonce.fill(0);
+  m.offsetSeeds.fill(0);
+}
+
 export interface DerivedKeys {
   real: DerivedKeyMaterial & { offset: number };
   decoy: DerivedKeyMaterial & { offset: number };
@@ -58,6 +65,8 @@ export async function deriveAllKeys(
   for (let cc = 1; cc <= MAX_COLLISION_COUNTER; cc++) {
     if (!slotsOverlap(realOffset, decoyOffset, slotWithTag)) break;
     collisionResolved = true;
+    // Zero previous decoy material before overwriting (skip initial — saved for phase 2)
+    if (decoyResult !== initialDecoyResult) zeroMaterial(decoyResult.material);
     decoyResult = await deriveKeyMaterial(decoyPassphrase, 'decoy', config.argon2Params, cc);
     decoyOffset = uniformOffset(decoyResult.material.offsetSeeds, safeRange);
     decoyTotalMs += decoyResult.durationMs;
@@ -67,7 +76,12 @@ export async function deriveAllKeys(
   // This handles "dead zone" positions where no decoy offset avoids overlap.
   // For each new real offset, check against the original decoy (cc=0).
   if (slotsOverlap(realOffset, decoyOffset, slotWithTag)) {
+    // Zero all non-initial decoy attempts from phase 1
+    if (decoyResult !== initialDecoyResult) zeroMaterial(decoyResult.material);
+
     for (let cc = 1; cc <= MAX_COLLISION_COUNTER; cc++) {
+      // Zero previous real material before overwriting
+      zeroMaterial(realResult.material);
       realResult = await deriveKeyMaterial(realPassphrase, 'real', config.argon2Params, cc);
       realOffset = uniformOffset(realResult.material.offsetSeeds, safeRange);
       realTotalMs += realResult.durationMs;

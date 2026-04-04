@@ -158,6 +158,7 @@ export async function deriveKeyMaterial(
 
   // Zero the raw output buffer — material fields are already copied via .slice()
   output.fill(0);
+  saltBytes.fill(0);
 
   return { material, durationMs };
 }
