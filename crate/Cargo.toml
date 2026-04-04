@@ -13,13 +13,14 @@ getrandom = { version = "0.3", features = ["wasm_js"] }
 getrandom02 = { package = "getrandom", version = "0.2", features = ["js"] }
 argon2 = "0.5"
 chacha20poly1305 = "0.10"
-zeroize = { version = "1", features = ["derive"] }
+zeroize = "1"
 sha2 = "0.10"
-serde = { version = "1", features = ["derive"] }
-serde-wasm-bindgen = "0.6"
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = false
+
+[dev-dependencies]
+proptest = "1"
 
 [profile.release]
 opt-level = "z"
