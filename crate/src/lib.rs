@@ -1,6 +1,6 @@
 //! Shadow Vault — Rust/WASM crypto core.
 //!
-//! Replaces the TypeScript crypto layer with audited RustCrypto crates
+//! Replaces the TypeScript crypto layer with audited `RustCrypto` crates
 //! and guaranteed memory zeroing via `zeroize`.
 //!
 //! Exports:
@@ -37,20 +37,17 @@ fn validate_argon2_params(
 ) -> Result<(), String> {
     if memory_kib < MIN_MEMORY_KIB {
         return Err(format!(
-            "Memory too low: {} KiB, minimum {} KiB",
-            memory_kib, MIN_MEMORY_KIB
+            "Memory too low: {memory_kib} KiB, minimum {MIN_MEMORY_KIB} KiB"
         ));
     }
     if iterations < MIN_ITERATIONS {
         return Err(format!(
-            "Iterations too low: {}, minimum {}",
-            iterations, MIN_ITERATIONS
+            "Iterations too low: {iterations}, minimum {MIN_ITERATIONS}"
         ));
     }
     if parallelism < MIN_PARALLELISM {
         return Err(format!(
-            "Parallelism too low: {}, minimum {}",
-            parallelism, MIN_PARALLELISM
+            "Parallelism too low: {parallelism}, minimum {MIN_PARALLELISM}"
         ));
     }
     Ok(())
@@ -76,9 +73,9 @@ impl Drop for DerivedKeyMaterial {
 
 fn derive_salt(role: &str, collision_counter: u32) -> [u8; 32] {
     let salt_string = if collision_counter == 0 {
-        format!("shadow-vault:v1:{}", role)
+        format!("shadow-vault:v1:{role}")
     } else {
-        format!("shadow-vault:v1:{}:c{}", role, collision_counter)
+        format!("shadow-vault:v1:{role}:c{collision_counter}")
     };
     let mut hasher = Sha256::new();
     hasher.update(salt_string.as_bytes());
@@ -99,13 +96,13 @@ fn derive_key_material(
     let mut salt = derive_salt(role, collision_counter);
 
     let params = Params::new(memory_kib, iterations, parallelism, Some(64))
-        .map_err(|e| format!("Argon2 params error: {}", e))?;
+        .map_err(|e| format!("Argon2 params error: {e}"))?;
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
 
     let mut output = [0u8; 64];
     argon2
         .hash_password_into(passphrase.as_bytes(), &salt, &mut output)
-        .map_err(|e| format!("Argon2 hash error: {}", e))?;
+        .map_err(|e| format!("Argon2 hash error: {e}"))?;
 
     salt.zeroize();
 
@@ -153,7 +150,7 @@ fn uniform_offset(offset_seeds: &[u8; 20], range: u32) -> u32 {
 // ─── Slots overlap check ─────────────────────────────────────────────────
 
 fn slots_overlap(offset_a: u32, offset_b: u32, slot_with_tag: u32) -> bool {
-    (offset_a as i64 - offset_b as i64).unsigned_abs() < slot_with_tag as u64
+    (i64::from(offset_a) - i64::from(offset_b)).unsigned_abs() < u64::from(slot_with_tag)
 }
 
 // ─── Encode / decode message slots ───────────────────────────────────────
@@ -167,10 +164,13 @@ fn encode_slot(message: &[u8], slot_size: usize) -> Result<Vec<u8>, String> {
         ));
     }
     let mut slot = vec![0u8; slot_size];
-    slot[0..4].copy_from_slice(&(message.len() as u32).to_le_bytes());
+    #[allow(clippy::cast_possible_truncation)]
+    {
+        slot[0..4].copy_from_slice(&(message.len() as u32).to_le_bytes());
+    }
     slot[4..4 + message.len()].copy_from_slice(message);
     // Fill remaining with random padding
-    getrandom::fill(&mut slot[4 + message.len()..]).map_err(|e| format!("RNG error: {}", e))?;
+    getrandom::fill(&mut slot[4 + message.len()..]).map_err(|e| format!("RNG error: {e}"))?;
     Ok(slot)
 }
 
@@ -190,7 +190,7 @@ fn decode_slot(plaintext: &[u8]) -> Result<String, String> {
 
 fn aead_seal(key: &[u8; 32], nonce: &[u8; 12], plaintext: &[u8]) -> Result<Vec<u8>, String> {
     let cipher =
-        ChaCha20Poly1305::new_from_slice(key).map_err(|e| format!("Cipher init error: {}", e))?;
+        ChaCha20Poly1305::new_from_slice(key).map_err(|e| format!("Cipher init error: {e}"))?;
     let nonce = Nonce::from_slice(nonce);
     cipher
         .encrypt(
@@ -200,7 +200,7 @@ fn aead_seal(key: &[u8; 32], nonce: &[u8; 12], plaintext: &[u8]) -> Result<Vec<u
                 aad: AAD,
             },
         )
-        .map_err(|e| format!("Encryption error: {}", e))
+        .map_err(|e| format!("Encryption error: {e}"))
 }
 
 fn aead_open(key: &[u8; 32], nonce: &[u8; 12], ciphertext: &[u8]) -> Option<Vec<u8>> {
@@ -238,6 +238,7 @@ impl Drop for ResolvedKeys {
     }
 }
 
+#[allow(clippy::too_many_lines)]
 fn derive_all_keys(
     real_passphrase: &str,
     decoy_passphrase: &str,
@@ -394,6 +395,8 @@ fn derive_all_keys(
 
 #[wasm_bindgen]
 #[allow(clippy::too_many_arguments)]
+/// # Errors
+/// Returns an error if parameters are invalid, messages are too long, or encryption fails.
 pub fn create_container(
     real_message: &str,
     decoy_message: &str,
@@ -413,7 +416,7 @@ pub fn create_container(
 
     // Fill container with CSPRNG random bytes
     let mut container = vec![0u8; container_size as usize];
-    getrandom::fill(&mut container).map_err(|e| JsValue::from_str(&format!("RNG error: {}", e)))?;
+    getrandom::fill(&mut container).map_err(|e| JsValue::from_str(&format!("RNG error: {e}")))?;
 
     // Derive all keys with collision resolution
     let mut keys = derive_all_keys(
@@ -488,6 +491,8 @@ pub fn create_container(
 // ─── WASM-exported: Open container ───────────────────────────────────────
 
 #[wasm_bindgen]
+/// # Errors
+/// Returns an error if parameters are invalid or the container data is malformed.
 pub fn open_container(
     container_data: &[u8],
     passphrase: &str,
@@ -510,12 +515,11 @@ pub fn open_container(
     let mut derivations: Vec<(DerivedKeyMaterial, usize)> = Vec::with_capacity(16);
     for role in &["real", "decoy"] {
         for cc in 0..=MAX_COLLISION_COUNTER {
-            match derive_key_material(passphrase, role, memory_kib, iterations, parallelism, cc) {
-                Ok(mat) => {
-                    let offset = uniform_offset(&mat.offset_seeds, safe_range) as usize;
-                    derivations.push((mat, offset));
-                }
-                Err(_) => continue,
+            if let Ok(mat) =
+                derive_key_material(passphrase, role, memory_kib, iterations, parallelism, cc)
+            {
+                let offset = uniform_offset(&mat.offset_seeds, safe_range) as usize;
+                derivations.push((mat, offset));
             }
         }
     }
@@ -529,28 +533,28 @@ pub fn open_container(
         let sealed = &container_data[*offset..end];
 
         if let Some(mut plaintext) = aead_open(&mat.key, &mat.nonce, sealed) {
-            match decode_slot(&plaintext) {
-                Ok(message) => {
-                    plaintext.zeroize();
-                    let offset_percent =
-                        ((*offset as f64) / (safe_range as f64) * 100.0).round() as u32;
+            if let Ok(message) = decode_slot(&plaintext) {
+                plaintext.zeroize();
+                #[allow(
+                    clippy::cast_possible_truncation,
+                    clippy::cast_sign_loss,
+                    clippy::cast_precision_loss
+                )]
+                let offset_percent =
+                    ((*offset as f64) / f64::from(safe_range) * 100.0).round() as u32;
 
-                    // derivations Vec dropped on return → all key material zeroized
-                    let result = js_sys::Object::new();
-                    js_sys::Reflect::set(&result, &"success".into(), &JsValue::TRUE)?;
-                    js_sys::Reflect::set(&result, &"message".into(), &JsValue::from_str(&message))?;
-                    js_sys::Reflect::set(
-                        &result,
-                        &"offsetPercent".into(),
-                        &JsValue::from(offset_percent),
-                    )?;
-                    return Ok(result.into());
-                }
-                Err(_) => {
-                    plaintext.zeroize();
-                    continue;
-                }
+                // derivations Vec dropped on return → all key material zeroized
+                let result = js_sys::Object::new();
+                js_sys::Reflect::set(&result, &"success".into(), &JsValue::TRUE)?;
+                js_sys::Reflect::set(&result, &"message".into(), &JsValue::from_str(&message))?;
+                js_sys::Reflect::set(
+                    &result,
+                    &"offsetPercent".into(),
+                    &JsValue::from(offset_percent),
+                )?;
+                return Ok(result.into());
             }
+            plaintext.zeroize();
         }
     }
     // derivations dropped here → all key material zeroized
@@ -564,6 +568,11 @@ pub fn open_container(
 // ─── WASM-exported: Self-test (RFC 8439 vectors) ─────────────────────────
 
 #[wasm_bindgen]
+/// # Errors
+/// Returns an error on self-test failure.
+///
+/// # Panics
+/// Panics if RFC 8439 test vector key or nonce slices are invalid (programmer error).
 pub fn self_test() -> Result<JsValue, JsValue> {
     let mut failures: Vec<String> = Vec::new();
 
@@ -575,7 +584,8 @@ pub fn self_test() -> Result<JsValue, JsValue> {
         let aad = hex_to_bytes("50515253c0c1c2c3c4c5c6c7");
         let plaintext = b"Ladies and Gentlemen of the class of '99: If I could offer you only one tip for the future, sunscreen would be it.";
 
-        let cipher = ChaCha20Poly1305::new_from_slice(&key_bytes).unwrap();
+        let cipher = ChaCha20Poly1305::new_from_slice(&key_bytes)
+            .expect("RFC 8439 test vector key must be valid");
         let nonce = Nonce::from_slice(&nonce_bytes);
 
         let sealed = cipher
@@ -586,7 +596,7 @@ pub fn self_test() -> Result<JsValue, JsValue> {
                     aad: &aad,
                 },
             )
-            .unwrap();
+            .expect("RFC 8439 test vector encryption must succeed");
 
         let expected_ct = hex_to_bytes(
             "d31a8d34648e60db7b86afbc53ef7ec2\
@@ -625,7 +635,8 @@ pub fn self_test() -> Result<JsValue, JsValue> {
         // Test wrong key fails
         let mut wrong_key = key_bytes.clone();
         wrong_key[0] ^= 1;
-        let wrong_cipher = ChaCha20Poly1305::new_from_slice(&wrong_key).unwrap();
+        let wrong_cipher = ChaCha20Poly1305::new_from_slice(&wrong_key)
+            .expect("modified test vector key must be valid");
         if wrong_cipher
             .decrypt(
                 nonce,
@@ -663,7 +674,7 @@ pub fn self_test() -> Result<JsValue, JsValue> {
                     failures.push("App AEAD round-trip: wrong key should fail".into());
                 }
             }
-            Err(e) => failures.push(format!("App AEAD round-trip seal error: {}", e)),
+            Err(e) => failures.push(format!("App AEAD round-trip seal error: {e}")),
         }
     }
 
@@ -684,6 +695,7 @@ pub fn self_test() -> Result<JsValue, JsValue> {
 // ─── WASM-exported: Max message length ───────────────────────────────────
 
 #[wasm_bindgen]
+#[must_use]
 pub fn get_max_message_length(container_size: u32) -> u32 {
     let slot_size = container_size / 3;
     slot_size - 4
@@ -695,13 +707,24 @@ fn hex_to_bytes(hex: &str) -> Vec<u8> {
     let hex = hex.replace(|c: char| c.is_whitespace(), "");
     (0..hex.len())
         .step_by(2)
-        .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).unwrap())
+        .map(|i| {
+            u8::from_str_radix(&hex[i..i + 2], 16).expect("hex_to_bytes called with invalid hex")
+        })
         .collect()
 }
 
 // ─── Tests ───────────────────────────────────────────────────────────────
 
 #[cfg(test)]
+#[allow(
+    clippy::unwrap_used,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    clippy::cast_precision_loss,
+    clippy::too_many_lines,
+    clippy::cast_lossless,
+    clippy::format_collect
+)]
 mod tests {
     use super::*;
 
@@ -747,12 +770,7 @@ mod tests {
         ];
         for range in [100, 1000, 4000, 8000, 16000, 32000] {
             let offset = uniform_offset(&seeds, range);
-            assert!(
-                offset < range,
-                "offset {} should be < range {}",
-                offset,
-                range
-            );
+            assert!(offset < range, "offset {offset} should be < range {range}");
         }
     }
 
@@ -1064,8 +1082,7 @@ If I could offer you only one tip for the future, sunscreen would be it.";
             Err(e) => {
                 assert!(
                     e.contains("collision"),
-                    "Error should mention collision: {}",
-                    e
+                    "Error should mention collision: {e}"
                 );
             }
         }
@@ -1073,7 +1090,7 @@ If I could offer you only one tip for the future, sunscreen would be it.";
 
     // ── Full container create/open round-trip ───────────────────────
 
-    /// Helper: create a container natively (without JsValue) for testing.
+    /// Helper: create a container natively (without `JsValue`) for testing.
     pub(crate) fn create_container_native(
         real_msg: &str,
         decoy_msg: &str,
@@ -1082,12 +1099,12 @@ If I could offer you only one tip for the future, sunscreen would be it.";
         container_size: u32,
     ) -> Result<(Vec<u8>, u32, u32), String> {
         if !VALID_CONTAINER_SIZES.contains(&container_size) {
-            return Err(format!("Invalid container size: {}", container_size));
+            return Err(format!("Invalid container size: {container_size}"));
         }
         let slot_size = (container_size / 3) as usize;
 
         let mut container = vec![0u8; container_size as usize];
-        getrandom::fill(&mut container).map_err(|e| format!("RNG error: {}", e))?;
+        getrandom::fill(&mut container).map_err(|e| format!("RNG error: {e}"))?;
 
         let keys = derive_all_keys(real_pass, decoy_pass, container_size, 256, 1, 1)?;
 
@@ -1104,7 +1121,7 @@ If I could offer you only one tip for the future, sunscreen would be it.";
         Ok((container, keys.real_offset, keys.decoy_offset))
     }
 
-    /// Helper: open a container natively (without JsValue) for testing.
+    /// Helper: open a container natively (without `JsValue`) for testing.
     pub(crate) fn open_container_native(
         container: &[u8],
         passphrase: &str,
@@ -1204,10 +1221,7 @@ If I could offer you only one tip for the future, sunscreen would be it.";
         let slot_with_tag = slot_size + 16;
         assert!(
             !slots_overlap(real_off, decoy_off, slot_with_tag),
-            "Real offset {} and decoy offset {} must not overlap (slot+tag={})",
-            real_off,
-            decoy_off,
-            slot_with_tag
+            "Real offset {real_off} and decoy offset {decoy_off} must not overlap (slot+tag={slot_with_tag})"
         );
     }
 
@@ -1238,7 +1252,7 @@ If I could offer you only one tip for the future, sunscreen would be it.";
     fn container_all_valid_sizes() {
         for &size in &[4096u32, 8192, 16384, 32768] {
             let result = create_container_native("hi", "bye", "pass-r", "pass-d", size);
-            assert!(result.is_ok(), "Container size {} should work", size);
+            assert!(result.is_ok(), "Container size {size} should work");
             let (container, _, _) = result.unwrap();
             assert_eq!(container.len(), size as usize);
 
@@ -1286,9 +1300,7 @@ If I could offer you only one tip for the future, sunscreen would be it.";
                 let slot_with_tag = slot_size + 16;
                 assert!(
                     !slots_overlap(real_off, decoy_off, slot_with_tag),
-                    "Slots overlap: real={}, decoy={}",
-                    real_off,
-                    decoy_off
+                    "Slots overlap: real={real_off}, decoy={decoy_off}"
                 );
 
                 let real = open_container_native(&container, real_pass, container_size);
@@ -1302,7 +1314,7 @@ If I could offer you only one tip for the future, sunscreen would be it.";
                 );
             }
             Err(e) => {
-                assert!(e.contains("collision"), "Unexpected error: {}", e);
+                assert!(e.contains("collision"), "Unexpected error: {e}");
             }
         }
     }
@@ -1376,8 +1388,8 @@ If I could offer you only one tip for the future, sunscreen would be it.";
 
         // These are not secret — they're deterministic test fixtures.
         // If they change, the container format has broken.
-        let key_hex: String = key_prefix.iter().map(|b| format!("{:02x}", b)).collect();
-        let nonce_hex: String = nonce_prefix.iter().map(|b| format!("{:02x}", b)).collect();
+        let key_hex: String = key_prefix.iter().map(|b| format!("{b:02x}")).collect();
+        let nonce_hex: String = nonce_prefix.iter().map(|b| format!("{b:02x}")).collect();
 
         // Re-derive and verify stability (same inputs must produce same output)
         let mat2 = derive_key_material("test-vector-passphrase", "real", 256, 1, 1, 0).unwrap();
@@ -1396,8 +1408,8 @@ If I could offer you only one tip for the future, sunscreen would be it.";
         assert_ne!(mat.nonce, [0u8; 12], "Nonce must not be all zeros");
 
         // Print for future pinning (run with --nocapture to see)
-        eprintln!("key_prefix: {}", key_hex);
-        eprintln!("nonce_prefix: {}", nonce_hex);
+        eprintln!("key_prefix: {key_hex}");
+        eprintln!("nonce_prefix: {nonce_hex}");
     }
 
     #[test]
@@ -1431,7 +1443,7 @@ If I could offer you only one tip for the future, sunscreen would be it.";
         // Invalid sizes must fail in Rust, not just JS
         for &bad_size in &[0u32, 1, 3, 100, 4095, 4097, 8191, 8193, 65536] {
             let result = create_container_native("msg", "decoy", "p1", "p2", bad_size);
-            assert!(result.is_err(), "Size {} should be rejected", bad_size);
+            assert!(result.is_err(), "Size {bad_size} should be rejected");
         }
     }
 
@@ -1447,7 +1459,7 @@ If I could offer you only one tip for the future, sunscreen would be it.";
         assert_eq!(
             mat.key
                 .iter()
-                .map(|b| format!("{:02x}", b))
+                .map(|b| format!("{b:02x}"))
                 .collect::<String>(),
             "613d5144a8be8d5ab21ba284f8f3afc039c8c61f80f7f60c5f389c59f0812cfa",
             "Key derivation for real/cc0 changed — this breaks existing containers"
@@ -1455,7 +1467,7 @@ If I could offer you only one tip for the future, sunscreen would be it.";
         assert_eq!(
             mat.nonce
                 .iter()
-                .map(|b| format!("{:02x}", b))
+                .map(|b| format!("{b:02x}"))
                 .collect::<String>(),
             "a60ced6e00b20d75d50b4115",
             "Nonce derivation for real/cc0 changed"
@@ -1463,7 +1475,7 @@ If I could offer you only one tip for the future, sunscreen would be it.";
         assert_eq!(
             mat.offset_seeds
                 .iter()
-                .map(|b| format!("{:02x}", b))
+                .map(|b| format!("{b:02x}"))
                 .collect::<String>(),
             "0ace1364f64fbceda90fd1ec451514af70af2457",
             "Offset seeds for real/cc0 changed"
@@ -1476,7 +1488,7 @@ If I could offer you only one tip for the future, sunscreen would be it.";
         assert_eq!(
             mat.key
                 .iter()
-                .map(|b| format!("{:02x}", b))
+                .map(|b| format!("{b:02x}"))
                 .collect::<String>(),
             "7ebce1e61141081d4c8ecf949877d3be1fc6b551c1946a38529c5abc662f906b",
             "Key derivation for decoy/cc0 changed — this breaks existing containers"
@@ -1484,7 +1496,7 @@ If I could offer you only one tip for the future, sunscreen would be it.";
         assert_eq!(
             mat.nonce
                 .iter()
-                .map(|b| format!("{:02x}", b))
+                .map(|b| format!("{b:02x}"))
                 .collect::<String>(),
             "bd66d48145f05ddfc0bdcb37",
             "Nonce derivation for decoy/cc0 changed"
@@ -1492,7 +1504,7 @@ If I could offer you only one tip for the future, sunscreen would be it.";
         assert_eq!(
             mat.offset_seeds
                 .iter()
-                .map(|b| format!("{:02x}", b))
+                .map(|b| format!("{b:02x}"))
                 .collect::<String>(),
             "e88c8e5707ea53c620c9d73bb479db69433ea7e7",
             "Offset seeds for decoy/cc0 changed"
@@ -1505,7 +1517,7 @@ If I could offer you only one tip for the future, sunscreen would be it.";
         assert_eq!(
             mat.key
                 .iter()
-                .map(|b| format!("{:02x}", b))
+                .map(|b| format!("{b:02x}"))
                 .collect::<String>(),
             "59ea5d7c8395f6c64c49541edd64632a1fa5b9485337557212a8b27ca53d4edc",
             "Key derivation for real/cc1 changed — collision counter salt is format-sensitive"
@@ -1513,7 +1525,7 @@ If I could offer you only one tip for the future, sunscreen would be it.";
         assert_eq!(
             mat.nonce
                 .iter()
-                .map(|b| format!("{:02x}", b))
+                .map(|b| format!("{b:02x}"))
                 .collect::<String>(),
             "4a98f94d381c84d61ef713ae",
             "Nonce derivation for real/cc1 changed"
@@ -1618,23 +1630,17 @@ If I could offer you only one tip for the future, sunscreen would be it.";
             // Two slots with tags must fit in the container
             assert!(
                 slot_with_tag * 2 <= cs,
-                "Two slots don't fit in container size {}",
-                cs
+                "Two slots don't fit in container size {cs}"
             );
 
             // Max offset + slot_with_tag must not exceed container
             assert!(
                 safe_range + slot_with_tag <= cs,
-                "Slot at max offset exceeds container for size {}",
-                cs
+                "Slot at max offset exceeds container for size {cs}"
             );
 
             // Max message length must be positive
-            assert!(
-                slot_size > 4,
-                "Slot size too small for container size {}",
-                cs
-            );
+            assert!(slot_size > 4, "Slot size too small for container size {cs}");
         }
     }
 
@@ -1665,11 +1671,10 @@ If I could offer you only one tip for the future, sunscreen would be it.";
 
         // Try 20 wrong passphrases — none should succeed
         for i in 0..20 {
-            let wrong = format!("wrong-pass-{}", i);
+            let wrong = format!("wrong-pass-{i}");
             assert!(
                 open_container_native(&container, &wrong, 8192).is_none(),
-                "False positive with passphrase '{}'",
-                wrong
+                "False positive with passphrase '{wrong}'"
             );
         }
     }
@@ -1698,6 +1703,12 @@ If I could offer you only one tip for the future, sunscreen would be it.";
 // ─── Property-based tests (proptest) ─────────────────────────────────────
 
 #[cfg(test)]
+#[allow(
+    clippy::unwrap_used,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    clippy::cast_precision_loss
+)]
 mod proptests {
     use super::*;
     use crate::tests::{create_container_native, open_container_native};
@@ -1728,7 +1739,7 @@ mod proptests {
 
             // Ensure passphrases differ
             let decoy_pass_actual = if real_pass == decoy_pass {
-                format!("{}_different", decoy_pass)
+                format!("{decoy_pass}_different")
             } else {
                 decoy_pass
             };
@@ -1882,7 +1893,7 @@ mod proptests {
             let slot_with_tag = slot_size + 16;
 
             let decoy_pass_actual = if real_pass == decoy_pass {
-                format!("{}_x", decoy_pass)
+                format!("{decoy_pass}_x")
             } else {
                 decoy_pass
             };
@@ -1930,8 +1941,7 @@ mod proptests {
         // A good random distribution should be well below this.
         assert!(
             chi_sq < 400.0,
-            "Container bytes have suspicious distribution: chi²={:.1}",
-            chi_sq
+            "Container bytes have suspicious distribution: chi²={chi_sq:.1}"
         );
     }
 
@@ -1948,8 +1958,7 @@ mod proptests {
             for j in (i + 1)..containers.len() {
                 assert_ne!(
                     containers[i], containers[j],
-                    "Containers {} and {} are identical",
-                    i, j
+                    "Containers {i} and {j} are identical"
                 );
             }
         }
