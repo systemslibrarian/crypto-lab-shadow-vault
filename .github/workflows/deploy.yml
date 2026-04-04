@@ -28,6 +28,9 @@ jobs:
           workspaces: crate
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - name: Run Rust tests
+        run: cargo test --release
+        working-directory: crate
       - name: Build WASM crypto core
         run: wasm-pack build --target web --out-dir ../pkg --release
         working-directory: crate

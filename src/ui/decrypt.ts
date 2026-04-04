@@ -17,10 +17,31 @@ export function initDecrypt(): void {
   const resultEl = document.getElementById('decrypt-result')!;
   const messageEl = document.getElementById('decrypted-message')!;
   const btnCopy = document.getElementById('btn-copy')!;
+  const btnClear = document.getElementById('btn-clear-message')!;
   const offsetBar = document.getElementById('decrypt-offset-bar')!;
 
   let loadedContainer: Uint8Array | null = null;
   let detectedSize: ContainerSize | null = null;
+
+  // Auto-clear decrypted message after 2 minutes
+  const MESSAGE_CLEAR_MS = 2 * 60 * 1000;
+  let messageClearTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function clearDecryptedMessage(): void {
+    messageEl.textContent = '';
+    resultEl.classList.add('hidden');
+    if (messageClearTimer !== null) {
+      clearTimeout(messageClearTimer);
+      messageClearTimer = null;
+    }
+  }
+
+  function startMessageClearTimer(): void {
+    if (messageClearTimer !== null) {
+      clearTimeout(messageClearTimer);
+    }
+    messageClearTimer = setTimeout(clearDecryptedMessage, MESSAGE_CLEAR_MS);
+  }
 
   function validateForm(): boolean {
     const valid = loadedContainer !== null && passInput.value.length > 0;
@@ -123,6 +144,7 @@ export function initDecrypt(): void {
 
         resultEl.classList.remove('hidden');
         messageEl.textContent = result.message;
+        startMessageClearTimer();
 
         // Offset bar — visual only, no numeric value
         const barInner = offsetBar.querySelector('span')!;
@@ -138,7 +160,8 @@ export function initDecrypt(): void {
       passInput.value = '';
     } catch (err: unknown) {
       workingStep.className = 'text-vault-danger';
-      workingStep.textContent = `✗ ${err instanceof Error ? err.message : 'Unknown error'}`;
+      workingStep.textContent = '✗ No message found for this passphrase.';
+      console.error('Decrypt error:', err);
     } finally {
       btnDecrypt.textContent = 'OPEN VAULT';
       validateForm();
@@ -151,4 +174,6 @@ export function initDecrypt(): void {
     btnCopy.textContent = 'COPIED';
     setTimeout(() => { btnCopy.textContent = 'COPY'; }, 1500);
   });
+
+  btnClear.addEventListener('click', clearDecryptedMessage);
 }

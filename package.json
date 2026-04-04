@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "wasm": "cd crate && wasm-pack build --target web --out-dir ../pkg --release && cp ../pkg/shadow_vault_crypto_bg.wasm ../public/ && cp ../pkg/shadow_vault_crypto.js ../public/",
+    "test": "cd crate && cargo test --release",
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",

@@ -73,7 +73,11 @@ Shadow Vault uses **audited RustCrypto crates** compiled to WASM, but the integr
 
 Passphrases still enter via HTML `<input>` elements as immutable JavaScript strings — Rust/WASM cannot zero those. Everything else (keys, nonces, salts, plaintext slots) is zeroed deterministically via the `zeroize` crate.
 
-For real-world deniable encryption, use [VeraCrypt](https://veracrypt.fr) with hidden volumes.
+**Strong, unique passphrases are required for both real and decoy messages.** Deniability depends on the attacker being unable to brute-force either passphrase. Weak passphrases collapse the entire security model regardless of Argon2id parameters.
+
+Decrypted messages are auto-cleared after 2 minutes. Sensitive inputs are cleared on idle and on page unload.
+
+This tool is weaker than a native application under serious threat models. For real-world deniable encryption, use [VeraCrypt](https://veracrypt.fr) with hidden volumes.
 
 ## Tech Stack
 

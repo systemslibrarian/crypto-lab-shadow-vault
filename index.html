@@ -2,7 +2,7 @@
 <html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self'; base-uri 'self'; form-action 'none'" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self'; connect-src 'self'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'" />
     <link rel="icon" type="image/svg+xml" href="/shadow-vault/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Deniable encryption — two messages, one container, no trace." />
@@ -199,7 +199,10 @@
           <div id="decrypt-result" class="hidden mb-6 bg-vault-surface border border-vault-border rounded-lg p-5">
             <div class="flex items-center justify-between mb-3">
               <h3 class="text-xs text-vault-text-dim">MESSAGE</h3>
-              <button id="btn-copy" class="text-xs text-vault-text-dim hover:text-vault-text border border-vault-border px-3 py-1.5 rounded transition-colors min-h-[44px]">COPY</button>
+              <div class="flex gap-2">
+                <button id="btn-copy" class="text-xs text-vault-text-dim hover:text-vault-text border border-vault-border px-3 py-1.5 rounded transition-colors min-h-[44px]">COPY</button>
+                <button id="btn-clear-message" class="text-xs text-vault-text-dim hover:text-vault-text border border-vault-border px-3 py-1.5 rounded transition-colors min-h-[44px]">CLEAR</button>
+              </div>
             </div>
             <div id="decrypted-message" class="bg-vault-bg border border-vault-border rounded p-4 text-sm whitespace-pre-wrap break-words"></div>
             <div class="flex items-center gap-4 mt-3 text-xs text-vault-text-muted">
@@ -260,12 +263,13 @@
             <li>Keyloggers or compromised devices capturing passphrases</li>
             <li>Coercion with violence (rubber-hose cryptanalysis)</li>
             <li>Metadata outside the container (filenames, timestamps, access logs)</li>
-            <li>Browser memory not being securely wiped</li>
+            <li>Browser memory not being securely wiped (passphrases enter as JS strings)</li>
+            <li>Weak passphrases — deniability collapses if either passphrase can be brute-forced</li>
           </ul>
         </section>
         <section>
           <h3 class="font-display text-lg font-semibold mb-2 text-vault-crimson">Honest Limitations</h3>
-          <p>Shadow Vault is a <strong>demonstration of deniable encryption concepts</strong>, not production-grade deniable storage. For real-world deniable encryption, use <a href="https://veracrypt.fr" class="text-vault-crimson hover:text-vault-crimson-light underline" target="_blank" rel="noopener noreferrer">VeraCrypt</a> with hidden volumes.</p>
+          <p>Shadow Vault is a <strong>demonstration of deniable encryption concepts</strong>, not production-grade deniable storage. Browser-based cryptography is inherently weaker than native tools. Strong, unique passphrases are required for both messages — deniability depends on the attacker being unable to brute-force either one. For real-world deniable encryption, use <a href="https://veracrypt.fr" class="text-vault-crimson hover:text-vault-crimson-light underline" target="_blank" rel="noopener noreferrer">VeraCrypt</a> with hidden volumes.</p>
         </section>
         <section class="border-t border-vault-border pt-4">
           <h3 class="font-display text-base font-semibold mb-2">Related Projects</h3>
