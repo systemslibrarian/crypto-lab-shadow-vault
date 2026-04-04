@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/shadow-vault/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Deniable encryption — two messages, one container, no trace." />
+    <title>Shadow Vault — Deniable Encryption</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet" />
+    <script src="argon2-bundled.min.js"></script>
+  </head>
+  <body class="bg-vault-bg text-vault-text font-mono min-h-screen antialiased">
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:bg-vault-crimson focus:text-white focus:px-4 focus:py-2 focus:z-50 focus:rounded">Skip to content</a>
+    <div id="app" class="max-w-4xl mx-auto px-4 py-8">
+      <!-- Header -->
+      <header class="mb-8">
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="font-display text-3xl font-bold tracking-tight flex items-center gap-2">
+              <span class="text-vault-crimson">◈</span> SHADOW VAULT
+            </h1>
+            <p class="text-vault-text-dim text-sm mt-1">Two messages. One container. No trace.</p>
+          </div>
+          <button id="btn-how-it-works" class="text-vault-text-dim hover:text-vault-text text-sm border border-vault-border px-3 py-1.5 rounded transition-colors duration-300 min-h-[44px] min-w-[44px]" aria-label="How it works">
+            HOW IT WORKS
+          </button>
+        </div>
+      </header>
+
+      <!-- Tabs -->
+      <nav class="flex gap-0 mb-6 border-b border-vault-border" role="tablist" aria-label="Vault operations">
+        <button id="tab-encrypt" class="tab-btn active px-6 py-3 text-sm font-semibold border-b-2 border-vault-crimson text-vault-text transition-colors duration-300 min-h-[44px]" role="tab" aria-selected="true" aria-controls="panel-encrypt">
+          ENCRYPT
+        </button>
+        <button id="tab-decrypt" class="tab-btn px-6 py-3 text-sm font-semibold border-b-2 border-transparent text-vault-text-dim hover:text-vault-text transition-colors duration-300 min-h-[44px]" role="tab" aria-selected="false" aria-controls="panel-decrypt">
+          DECRYPT
+        </button>
+      </nav>
+
+      <!-- Main Content -->
+      <main id="main-content">
+        <!-- Encrypt Panel -->
+        <section id="panel-encrypt" role="tabpanel" aria-labelledby="tab-encrypt">
+          <div class="grid md:grid-cols-2 gap-6 mb-6">
+            <!-- Real Message -->
+            <div class="bg-vault-surface border border-vault-border rounded-lg p-5">
+              <h2 class="font-display text-lg font-semibold mb-4 text-vault-crimson">REAL MESSAGE</h2>
+              <label for="real-passphrase" class="block text-xs text-vault-text-dim mb-1">Passphrase</label>
+              <div class="relative mb-3">
+                <input id="real-passphrase" type="password" autocomplete="new-password" class="w-full bg-vault-bg border border-vault-border rounded px-3 py-2.5 text-vault-text text-sm focus:border-vault-crimson focus:ring-1 focus:ring-vault-crimson outline-none transition-colors min-h-[44px]" placeholder="Strong passphrase for real message" />
+                <button class="toggle-password absolute right-2 top-1/2 -translate-y-1/2 text-vault-text-dim hover:text-vault-text p-1 min-w-[44px] min-h-[44px] flex items-center justify-center" aria-label="Toggle password visibility" data-target="real-passphrase">👁</button>
+              </div>
+              <label for="real-message" class="block text-xs text-vault-text-dim mb-1">Message</label>
+              <textarea id="real-message" rows="4" class="w-full bg-vault-bg border border-vault-border rounded px-3 py-2.5 text-vault-text text-sm focus:border-vault-crimson focus:ring-1 focus:ring-vault-crimson outline-none transition-colors resize-none" placeholder="The message you want to protect"></textarea>
+              <p class="text-xs text-vault-text-muted mt-1"><span id="real-char-count">0</span> chars</p>
+            </div>
+
+            <!-- Decoy Message -->
+            <div class="bg-vault-surface border border-vault-border rounded-lg p-5">
+              <h2 class="font-display text-lg font-semibold mb-4 text-vault-amber">DECOY MESSAGE</h2>
+              <label for="decoy-passphrase" class="block text-xs text-vault-text-dim mb-1">Passphrase</label>
+              <div class="relative mb-3">
+                <input id="decoy-passphrase" type="password" autocomplete="new-password" class="w-full bg-vault-bg border border-vault-border rounded px-3 py-2.5 text-vault-text text-sm focus:border-vault-amber focus:ring-1 focus:ring-vault-amber outline-none transition-colors min-h-[44px]" placeholder="Decoy passphrase to reveal under coercion" />
+                <button class="toggle-password absolute right-2 top-1/2 -translate-y-1/2 text-vault-text-dim hover:text-vault-text p-1 min-w-[44px] min-h-[44px] flex items-center justify-center" aria-label="Toggle password visibility" data-target="decoy-passphrase">👁</button>
+              </div>
+              <label for="decoy-message" class="block text-xs text-vault-text-dim mb-1">Message</label>
+              <textarea id="decoy-message" rows="4" class="w-full bg-vault-bg border border-vault-border rounded px-3 py-2.5 text-vault-text text-sm focus:border-vault-amber focus:ring-1 focus:ring-vault-amber outline-none transition-colors resize-none" placeholder="Plausible decoy message"></textarea>
+              <p class="text-xs text-vault-text-muted mt-1"><span id="decoy-char-count">0</span> chars</p>
+            </div>
+          </div>
+
+          <!-- Container Size -->
+          <div class="bg-vault-surface border border-vault-border rounded-lg p-5 mb-6">
+            <h3 class="text-xs text-vault-text-dim mb-3">CONTAINER SIZE</h3>
+            <div class="flex flex-wrap gap-4" role="radiogroup" aria-label="Container size">
+              <label class="flex items-center gap-2 cursor-pointer min-h-[44px]">
+                <input type="radio" name="container-size" value="4096" class="text-vault-crimson focus:ring-vault-crimson bg-vault-bg border-vault-border" />
+                <span class="text-sm">4 KB</span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer min-h-[44px]">
+                <input type="radio" name="container-size" value="8192" checked class="text-vault-crimson focus:ring-vault-crimson bg-vault-bg border-vault-border" />
+                <span class="text-sm">8 KB</span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer min-h-[44px]">
+                <input type="radio" name="container-size" value="16384" class="text-vault-crimson focus:ring-vault-crimson bg-vault-bg border-vault-border" />
+                <span class="text-sm">16 KB</span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer min-h-[44px]">
+                <input type="radio" name="container-size" value="32768" class="text-vault-crimson focus:ring-vault-crimson bg-vault-bg border-vault-border" />
+                <span class="text-sm">32 KB</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Argon2id Parameters -->
+          <div class="bg-vault-surface border border-vault-border rounded-lg mb-6">
+            <button id="btn-toggle-params" class="w-full flex items-center justify-between p-5 text-left min-h-[44px]" aria-expanded="false" aria-controls="params-panel">
+              <div>
+                <h3 class="text-xs text-vault-text-dim mb-1">ARGON2ID PARAMETERS</h3>
+                <p class="text-sm font-mono">
+                  Memory: <span id="param-display-mem">64 MB</span> &nbsp;
+                  Iterations: <span id="param-display-iter">3</span> &nbsp;
+                  Parallelism: <span id="param-display-par">4</span>
+                </p>
+              </div>
+              <span class="text-vault-text-dim text-sm" id="params-toggle-icon">▸ tune</span>
+            </button>
+            <div id="params-panel" class="hidden border-t border-vault-border p-5">
+              <div id="param-warnings" class="hidden mb-4 p-3 bg-vault-bg border border-vault-danger rounded text-sm text-vault-danger" role="alert" aria-live="polite"></div>
+              <div class="grid md:grid-cols-3 gap-6">
+                <div>
+                  <label for="param-memory" class="block text-xs text-vault-text-dim mb-2">Memory (MB)</label>
+                  <input id="param-memory" type="range" min="16" max="1024" step="16" value="64" class="w-full accent-vault-crimson" />
+                  <p class="text-sm font-mono mt-1"><span id="param-memory-val">64</span> MB (<span id="param-memory-kib">65536</span> KiB)</p>
+                </div>
+                <div>
+                  <label for="param-iterations" class="block text-xs text-vault-text-dim mb-2">Iterations</label>
+                  <input id="param-iterations" type="range" min="1" max="10" step="1" value="3" class="w-full accent-vault-crimson" />
+                  <p class="text-sm font-mono mt-1"><span id="param-iterations-val">3</span></p>
+                </div>
+                <div>
+                  <label for="param-parallelism" class="block text-xs text-vault-text-dim mb-2">Parallelism</label>
+                  <input id="param-parallelism" type="range" min="1" max="8" step="1" value="4" class="w-full accent-vault-crimson" />
+                  <p class="text-sm font-mono mt-1"><span id="param-parallelism-val">4</span></p>
+                </div>
+              </div>
+              <div class="flex items-center justify-between mt-4">
+                <p class="text-xs text-vault-text-dim" aria-live="polite">Estimated derivation: <span id="param-estimate" class="font-mono">~2s</span> per passphrase</p>
+                <button id="btn-restore-defaults" class="text-xs text-vault-text-dim hover:text-vault-text border border-vault-border px-3 py-1.5 rounded transition-colors min-h-[44px]">
+                  Restore Defaults
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Encrypt Button -->
+          <div class="text-center mb-6">
+            <button id="btn-encrypt" class="bg-vault-crimson hover:bg-vault-crimson-light text-white font-semibold px-8 py-3 rounded transition-colors duration-300 min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+              CREATE VAULT
+            </button>
+            <p id="encrypt-error" class="text-vault-danger text-sm mt-2 hidden" role="alert" aria-live="assertive"></p>
+          </div>
+
+          <!-- Progress -->
+          <div id="encrypt-progress" class="hidden mb-6 bg-vault-surface border border-vault-border rounded-lg p-5" aria-live="polite">
+            <div id="encrypt-steps" class="space-y-2 text-sm font-mono"></div>
+          </div>
+
+          <!-- Container Visualizer -->
+          <div id="container-visualizer" class="hidden mb-6 bg-vault-surface border border-vault-border rounded-lg p-5">
+            <h3 class="text-xs text-vault-text-dim mb-3">CONTAINER MAP</h3>
+            <div id="container-map" class="flex flex-wrap gap-px mb-3" role="img" aria-label="Visual representation of container contents"></div>
+            <p id="container-stats" class="text-xs text-vault-text-dim"></p>
+          </div>
+
+          <!-- Download -->
+          <div id="download-section" class="hidden text-center mb-6">
+            <button id="btn-download" class="border border-vault-border hover:border-vault-text text-vault-text px-6 py-3 rounded transition-colors duration-300 min-h-[44px]">
+              DOWNLOAD VAULT FILE
+            </button>
+            <p id="download-filename" class="text-xs text-vault-text-muted mt-2"></p>
+          </div>
+        </section>
+
+        <!-- Decrypt Panel -->
+        <section id="panel-decrypt" role="tabpanel" aria-labelledby="tab-decrypt" class="hidden">
+          <div class="bg-vault-surface border border-vault-border rounded-lg p-5 mb-6">
+            <label for="decrypt-file" class="block text-xs text-vault-text-dim mb-2">VAULT FILE</label>
+            <div id="drop-zone" class="border-2 border-dashed border-vault-border rounded-lg p-8 text-center cursor-pointer hover:border-vault-text-dim transition-colors duration-300 min-h-[100px] flex items-center justify-center">
+              <p class="text-vault-text-dim text-sm">Drop file or click to upload</p>
+              <input id="decrypt-file" type="file" class="hidden" aria-label="Upload vault file" />
+            </div>
+            <p id="file-info" class="text-xs text-vault-text-muted mt-2 hidden"></p>
+          </div>
+
+          <div class="bg-vault-surface border border-vault-border rounded-lg p-5 mb-6">
+            <label for="decrypt-passphrase" class="block text-xs text-vault-text-dim mb-2">PASSPHRASE</label>
+            <div class="relative">
+              <input id="decrypt-passphrase" type="password" autocomplete="current-password" class="w-full bg-vault-bg border border-vault-border rounded px-3 py-2.5 text-vault-text text-sm focus:border-vault-crimson focus:ring-1 focus:ring-vault-crimson outline-none transition-colors min-h-[44px]" placeholder="Enter passphrase to decrypt" />
+              <button class="toggle-password absolute right-2 top-1/2 -translate-y-1/2 text-vault-text-dim hover:text-vault-text p-1 min-w-[44px] min-h-[44px] flex items-center justify-center" aria-label="Toggle password visibility" data-target="decrypt-passphrase">👁</button>
+            </div>
+          </div>
+
+          <div class="text-center mb-6">
+            <button id="btn-decrypt" class="bg-vault-crimson hover:bg-vault-crimson-light text-white font-semibold px-8 py-3 rounded transition-colors duration-300 min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+              OPEN VAULT
+            </button>
+            <p id="decrypt-error" class="text-vault-danger text-sm mt-2 hidden" role="alert" aria-live="assertive"></p>
+          </div>
+
+          <!-- Decrypt Progress -->
+          <div id="decrypt-progress" class="hidden mb-6 bg-vault-surface border border-vault-border rounded-lg p-5" aria-live="polite">
+            <div id="decrypt-steps" class="space-y-2 text-sm font-mono"></div>
+          </div>
+
+          <!-- Decrypted Message -->
+          <div id="decrypt-result" class="hidden mb-6 bg-vault-surface border border-vault-border rounded-lg p-5">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-xs text-vault-text-dim">MESSAGE</h3>
+              <button id="btn-copy" class="text-xs text-vault-text-dim hover:text-vault-text border border-vault-border px-3 py-1.5 rounded transition-colors min-h-[44px]">COPY</button>
+            </div>
+            <div id="decrypted-message" class="bg-vault-bg border border-vault-border rounded p-4 text-sm whitespace-pre-wrap break-words"></div>
+            <div class="flex items-center gap-4 mt-3 text-xs text-vault-text-muted">
+              <span>Derivation: <span id="decrypt-time" class="font-mono"></span></span>
+              <span class="flex items-center gap-2">
+                Slot offset: 
+                <span id="decrypt-offset-bar" class="inline-block w-24 h-2 bg-vault-bg rounded overflow-hidden">
+                  <span class="block h-full bg-vault-crimson rounded" style="width:0%"></span>
+                </span>
+                <span class="text-vault-text-muted">(redacted)</span>
+              </span>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <!-- Footer -->
+      <footer class="mt-12 pt-6 border-t border-vault-border text-center">
+        <p id="self-test-status" class="text-xs text-vault-text-muted mb-2" aria-live="polite"></p>
+        <p class="text-xs text-vault-text-muted">
+          Shadow Vault — Deniable Encryption Demo &nbsp;|&nbsp; 
+          <a href="https://github.com/systemslibrarian/shadow-vault" class="hover:text-vault-text transition-colors">Source</a>
+        </p>
+      </footer>
+    </div>
+
+    <!-- How It Works Modal -->
+    <div id="modal-overlay" class="fixed inset-0 bg-black/80 z-40 hidden" aria-hidden="true"></div>
+    <dialog id="modal-how" class="fixed inset-0 z-50 max-w-2xl mx-auto my-8 bg-vault-surface border border-vault-border rounded-lg p-0 text-vault-text max-h-[85vh] overflow-y-auto" aria-labelledby="modal-title">
+      <div class="sticky top-0 bg-vault-surface border-b border-vault-border p-5 flex items-center justify-between z-10">
+        <h2 id="modal-title" class="font-display text-xl font-semibold">How Shadow Vault Works</h2>
+        <button id="btn-close-modal" class="text-vault-text-dim hover:text-vault-text min-w-[44px] min-h-[44px] flex items-center justify-center text-2xl" aria-label="Close">&times;</button>
+      </div>
+      <div class="p-5 space-y-6 text-sm leading-relaxed">
+        <section>
+          <h3 class="font-display text-lg font-semibold mb-2 text-vault-crimson">The Deniability Problem</h3>
+          <p>Standard encryption proves a message exists. Under coercion, possessing an encrypted file is itself incriminating. An adversary who compels you to surrender your passphrase gains the message — and knows there's nothing else to find.</p>
+          <p class="mt-2">Deniable encryption solves this: one container holds two independent encrypted messages at different offsets. You reveal the decoy passphrase. The adversary gets a plausible message. The real message remains undetectable — the rest of the container is indistinguishable from random padding.</p>
+        </section>
+        <section>
+          <h3 class="font-display text-lg font-semibold mb-2 text-vault-crimson">The Two-Passphrase Model</h3>
+          <p>Each passphrase independently derives an encryption key, a nonce, and a slot offset via Argon2id. The real passphrase decrypts the real message. The decoy passphrase decrypts the decoy. Without both passphrases, there is no way to prove two messages exist — or even that the container holds any message at all.</p>
+        </section>
+        <section>
+          <h3 class="font-display text-lg font-semibold mb-2 text-vault-crimson">Why Argon2id Is Load-Bearing</h3>
+          <p>Argon2id is not incidental — it is the security foundation. Without memory-hard key derivation, the deniability model collapses: an attacker who can brute-force both passphrases simultaneously recovers both offsets and both messages.</p>
+          <p class="mt-2">Argon2id with high memory parameters (64MB+ per derivation, per RFC 9106) makes simultaneous brute-force computationally hopeless. The cost scales per passphrase attempt — attacking two passphrases is twice as expensive.</p>
+        </section>
+        <section>
+          <h3 class="font-display text-lg font-semibold mb-2 text-vault-crimson">Container Format</h3>
+          <p>The container is a fixed-size block of bytes. It begins as entirely random (CSPRNG). Two encrypted message slots are written at derived offsets, overwriting random bytes. The result: no headers, no magic bytes, no length fields, no structure detectable by forensic analysis. The entire container looks like random data.</p>
+          <p class="mt-2 font-mono text-xs text-vault-text-dim">Passphrase → Argon2id(64B) → key[0..31] + nonce[32..43] + offset[44..47] → ChaCha20-Poly1305 AEAD</p>
+        </section>
+        <section>
+          <h3 class="font-display text-lg font-semibold mb-2 text-vault-crimson">What This Cannot Protect Against</h3>
+          <ul class="list-disc list-inside space-y-1 text-vault-text-dim">
+            <li>Implementation bugs in this demonstration code</li>
+            <li>Keyloggers or compromised devices capturing passphrases</li>
+            <li>Coercion with violence (rubber-hose cryptanalysis)</li>
+            <li>Metadata outside the container (filenames, timestamps, access logs)</li>
+            <li>Browser memory not being securely wiped</li>
+          </ul>
+        </section>
+        <section>
+          <h3 class="font-display text-lg font-semibold mb-2 text-vault-crimson">Honest Limitations</h3>
+          <p>Shadow Vault is a <strong>demonstration of deniable encryption concepts</strong>, not production-grade deniable storage. For real-world deniable encryption, use <a href="https://veracrypt.fr" class="text-vault-crimson hover:text-vault-crimson-light underline" target="_blank" rel="noopener noreferrer">VeraCrypt</a> with hidden volumes.</p>
+        </section>
+        <section class="border-t border-vault-border pt-4">
+          <h3 class="font-display text-base font-semibold mb-2">Related Projects</h3>
+          <ul class="space-y-1 text-vault-text-dim">
+            <li><a href="https://systemslibrarian.github.io/phantom-vault/" class="text-vault-crimson hover:text-vault-crimson-light underline" target="_blank" rel="noopener noreferrer">phantom-vault</a> — Argon2id + HMAC-DRBG stateless passwords</li>
+            <li><a href="https://systemslibrarian.github.io/corrupted-oracle/" class="text-vault-crimson hover:text-vault-crimson-light underline" target="_blank" rel="noopener noreferrer">corrupted-oracle</a> — ChaCha20-DRBG + Dual_EC backdoor</li>
+          </ul>
+        </section>
+      </div>
+    </dialog>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

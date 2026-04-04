@@ -1,0 +1,103 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Subtle noise texture */
+  body {
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 256px 256px;
+  }
+
+  input[type="password"]:focus,
+  input[type="text"]:focus,
+  textarea:focus {
+    outline: none;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #0d0d0d;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #2a2a2a;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #3a3a3a;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    height: 4px;
+    background: #2a2a2a;
+    border-radius: 2px;
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #8b1a1a;
+    cursor: pointer;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #8b1a1a;
+    border: none;
+    cursor: pointer;
+  }
+}
+
+@layer components {
+  .container-cell {
+    width: 6px;
+    height: 6px;
+    border-radius: 1px;
+    transition: background-color 0.3s ease;
+  }
+
+  .container-cell--padding {
+    background-color: #1a1a1a;
+  }
+
+  .container-cell--real {
+    background-color: #8b1a1a;
+    box-shadow: 0 0 3px rgba(139, 26, 26, 0.5);
+  }
+
+  .container-cell--decoy {
+    background-color: #b8860b;
+    box-shadow: 0 0 3px rgba(184, 134, 11, 0.5);
+  }
+
+  .step-pending {
+    color: #5a5248;
+  }
+
+  .step-active {
+    color: #e8dcc8;
+  }
+
+  .step-done {
+    color: #2d6b3f;
+  }
+}
+
+@layer utilities {
+  @media (prefers-reduced-motion: reduce) {
+    .container-cell {
+      transition: none !important;
+    }
+    * {
+      transition-duration: 0ms !important;
+      animation-duration: 0ms !important;
+    }
+  }
+}
