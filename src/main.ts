@@ -76,22 +76,35 @@ function initPasswordToggles(): void {
   });
 }
 
-// --- Security: clear passphrases on unload ---
+// --- Security: clear sensitive data on unload and idle ---
+const IDLE_CLEAR_MS = 5 * 60 * 1000; // 5 minutes
+let idleTimer: ReturnType<typeof setTimeout> | null = null;
+
+function clearSensitiveData(): void {
+  document.querySelectorAll('input[type="password"], input[type="text"]').forEach(el => {
+    (el as HTMLInputElement).value = '';
+  });
+  document.querySelectorAll('textarea').forEach(el => {
+    (el as HTMLTextAreaElement).value = '';
+  });
+  const msgEl = document.getElementById('decrypted-message');
+  if (msgEl) msgEl.textContent = '';
+}
+
 function initSecurityCleanup(): void {
-  window.addEventListener('beforeunload', () => {
-    // Clear all password/text inputs
-    const inputs = document.querySelectorAll('input[type="password"], input[type="text"]');
-    inputs.forEach(input => {
-      (input as HTMLInputElement).value = '';
-    });
-    // Clear all textareas (message inputs)
-    const textareas = document.querySelectorAll('textarea');
-    textareas.forEach(ta => {
-      (ta as HTMLTextAreaElement).value = '';
-    });
-    // Clear decrypted message display
-    const msgEl = document.getElementById('decrypted-message');
-    if (msgEl) msgEl.textContent = '';
+  // Clear on page unload (best-effort — not guaranteed on crash/force-quit)
+  window.addEventListener('beforeunload', clearSensitiveData);
+
+  // Clear after 5 minutes of tab being hidden (defense-in-depth)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      idleTimer = setTimeout(clearSensitiveData, IDLE_CLEAR_MS);
+    } else {
+      if (idleTimer !== null) {
+        clearTimeout(idleTimer);
+        idleTimer = null;
+      }
+    }
   });
 }
 
