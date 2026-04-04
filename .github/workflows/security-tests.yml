@@ -1,0 +1,135 @@
+name: Security & Test Suite
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  rust-tests:
+    name: Rust Tests & Security
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: clippy, rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crate
+
+      # Formatting check
+      - name: Check formatting
+        run: cargo fmt -- --check
+        working-directory: crate
+
+      # Clippy with all warnings as errors
+      - name: Cargo clippy (strict)
+        run: cargo clippy --release --all-targets -- -D warnings -D clippy::unwrap_used -W clippy::pedantic
+        working-directory: crate
+
+      # Unit + property tests
+      - name: Run Rust tests (release)
+        run: cargo test --release -- --nocapture
+        working-directory: crate
+
+      # Security audit of dependencies
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+      - name: Cargo audit
+        run: cargo audit
+        working-directory: crate
+
+      # Check for known-vulnerable dependencies
+      - name: Install cargo-deny
+        run: cargo install cargo-deny --locked
+      - name: Cargo deny (advisories + licenses)
+        run: cargo deny check advisories licenses
+        working-directory: crate
+        continue-on-error: true  # advisory DB may lag
+
+      # WASM build verification
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - name: Build WASM
+        run: wasm-pack build --target web --out-dir ../pkg --release
+        working-directory: crate
+
+      # Verify WASM output hash (reproducibility check)
+      - name: Record WASM hash
+        run: sha256sum pkg/shadow_vault_crypto_bg.wasm
+
+  typescript-checks:
+    name: TypeScript & Lint
+    runs-on: ubuntu-latest
+    needs: rust-tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # Rust/WASM build (needed for TS compilation)
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crate
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - name: Build WASM
+        run: npm run wasm
+
+      - run: npm ci
+
+      # TypeScript strict check
+      - name: TypeScript type check (strict)
+        run: npx tsc --noEmit
+
+      # npm audit for JS deps
+      - name: npm audit
+        run: npm audit --audit-level=high
+        continue-on-error: true  # dev deps may have advisories
+
+  browser-tests:
+    name: Browser Integration Tests
+    runs-on: ubuntu-latest
+    needs: [rust-tests, typescript-checks]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crate
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - name: Build WASM
+        run: npm run wasm
+
+      - run: npm ci
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      - name: Build app
+        run: npm run build
+      - name: Run Playwright tests
+        run: npx playwright test
+        env:
+          CI: true
