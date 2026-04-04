@@ -49,7 +49,7 @@ jobs:
 
       # Check for known-vulnerable dependencies
       - name: Install cargo-deny
-        run: cargo install cargo-deny --locked
+        run: cargo install cargo-deny@0.18.3 --locked
       - name: Cargo deny (advisories + licenses)
         run: cargo deny check advisories licenses
         working-directory: crate
