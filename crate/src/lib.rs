@@ -219,9 +219,9 @@ fn derive_all_keys(
     let mut decoy_offset = initial_decoy_offset;
     let mut decoy_key = decoy_mat_0.key;
     let mut decoy_nonce = decoy_mat_0.nonce;
-    // Keep initial decoy for phase 2 fallback
-    let initial_decoy_key = decoy_mat_0.key;
-    let initial_decoy_nonce = decoy_mat_0.nonce;
+    // Keep initial decoy for phase 2 fallback (will be zeroized if unused)
+    let mut initial_decoy_key = decoy_mat_0.key;
+    let mut initial_decoy_nonce = decoy_mat_0.nonce;
     drop(decoy_mat_0);
 
     // Phase 1: Re-derive decoy side
@@ -242,10 +242,18 @@ fn derive_all_keys(
 
     // Phase 2: If still colliding, move real side
     if slots_overlap(real_offset, decoy_offset, slot_with_tag) {
-        // Zero failed decoy attempts, restore initial
+        // Save Phase 1's last decoy key material before zeroing.
+        // If Phase 2 fails to resolve against initial_decoy but the Phase 1
+        // decoy offset + Phase 2 real offset combination works, we need these.
+        let mut phase1_decoy_key = decoy_key;
+        let mut phase1_decoy_nonce = decoy_nonce;
+        let phase1_decoy_offset = decoy_offset;
+
+        // Zero the active decoy copies (now saved in phase1_*)
         decoy_key.zeroize();
         decoy_nonce.zeroize();
 
+        let mut phase2_resolved = false;
         for cc in 1..=MAX_COLLISION_COUNTER {
             real_key.zeroize();
             real_nonce.zeroize();
@@ -256,12 +264,27 @@ fn derive_all_keys(
             drop(mat);
 
             if !slots_overlap(real_offset, initial_decoy_offset, slot_with_tag) {
+                // Resolved against initial decoy — use initial decoy keys
                 decoy_key = initial_decoy_key;
                 decoy_nonce = initial_decoy_nonce;
                 decoy_offset = initial_decoy_offset;
+                phase2_resolved = true;
                 break;
             }
         }
+
+        // If Phase 2 didn't resolve against initial decoy, check if the
+        // Phase 2 real offset works with Phase 1's decoy offset.
+        if !phase2_resolved && !slots_overlap(real_offset, phase1_decoy_offset, slot_with_tag) {
+            decoy_key = phase1_decoy_key;
+            decoy_nonce = phase1_decoy_nonce;
+            decoy_offset = phase1_decoy_offset;
+            phase2_resolved = true;
+        }
+
+        // Zeroize saved Phase 1 decoy material (used or not)
+        phase1_decoy_key.zeroize();
+        phase1_decoy_nonce.zeroize();
     }
 
     if slots_overlap(real_offset, decoy_offset, slot_with_tag) {
@@ -269,8 +292,15 @@ fn derive_all_keys(
         real_nonce.zeroize();
         decoy_key.zeroize();
         decoy_nonce.zeroize();
+        initial_decoy_key.zeroize();
+        initial_decoy_nonce.zeroize();
         return Err("Slot collision could not be resolved. Try a larger container size or different passphrases.".into());
     }
+
+    // Zeroize initial decoy copies — they were either consumed into decoy_key/decoy_nonce
+    // (phase 2 path) or are now stale duplicates (no-collision / phase 1 path).
+    initial_decoy_key.zeroize();
+    initial_decoy_nonce.zeroize();
 
     Ok(ResolvedKeys {
         real_key,
@@ -371,40 +401,51 @@ pub fn open_container(
     let slot_size = (container_size / 3) as usize;
     let safe_range = container_size - (container_size / 3) - 16;
 
+    // Phase 1: Derive ALL key materials upfront (constant-time Argon2id phase).
+    // This prevents timing side channels from revealing which role/cc matched,
+    // which would otherwise distinguish real vs decoy passphrases.
+    let mut derivations: Vec<(DerivedKeyMaterial, usize)> = Vec::with_capacity(16);
     for role in &["real", "decoy"] {
         for cc in 0..=MAX_COLLISION_COUNTER {
-            let mat = match derive_key_material(passphrase, role, memory_kib, iterations, parallelism, cc) {
-                Ok(m) => m,
-                Err(_) => continue,
-            };
-            let offset = uniform_offset(&mat.offset_seeds, safe_range) as usize;
-            let end = offset + slot_size + 16;
-            if end > container_data.len() {
-                continue;
-            }
-            let sealed = &container_data[offset..end];
-
-            if let Some(mut plaintext) = aead_open(&mat.key, &mat.nonce, sealed) {
-                match decode_slot(&plaintext) {
-                    Ok(message) => {
-                        plaintext.zeroize();
-                        let offset_percent = ((offset as f64) / (safe_range as f64) * 100.0).round() as u32;
-
-                        let result = js_sys::Object::new();
-                        js_sys::Reflect::set(&result, &"success".into(), &JsValue::TRUE)?;
-                        js_sys::Reflect::set(&result, &"message".into(), &JsValue::from_str(&message))?;
-                        js_sys::Reflect::set(&result, &"offsetPercent".into(), &JsValue::from(offset_percent))?;
-                        return Ok(result.into());
-                    }
-                    Err(_) => {
-                        plaintext.zeroize();
-                        continue;
-                    }
+            match derive_key_material(passphrase, role, memory_kib, iterations, parallelism, cc) {
+                Ok(mat) => {
+                    let offset = uniform_offset(&mat.offset_seeds, safe_range) as usize;
+                    derivations.push((mat, offset));
                 }
+                Err(_) => continue,
             }
-            // mat is dropped here → key material zeroized
         }
     }
+
+    // Phase 2: Check AEAD matches (microseconds per check — no timing leak).
+    for (mat, offset) in &derivations {
+        let end = *offset + slot_size + 16;
+        if end > container_data.len() {
+            continue;
+        }
+        let sealed = &container_data[*offset..end];
+
+        if let Some(mut plaintext) = aead_open(&mat.key, &mat.nonce, sealed) {
+            match decode_slot(&plaintext) {
+                Ok(message) => {
+                    plaintext.zeroize();
+                    let offset_percent = ((*offset as f64) / (safe_range as f64) * 100.0).round() as u32;
+
+                    // derivations Vec dropped on return → all key material zeroized
+                    let result = js_sys::Object::new();
+                    js_sys::Reflect::set(&result, &"success".into(), &JsValue::TRUE)?;
+                    js_sys::Reflect::set(&result, &"message".into(), &JsValue::from_str(&message))?;
+                    js_sys::Reflect::set(&result, &"offsetPercent".into(), &JsValue::from(offset_percent))?;
+                    return Ok(result.into());
+                }
+                Err(_) => {
+                    plaintext.zeroize();
+                    continue;
+                }
+            }
+        }
+    }
+    // derivations dropped here → all key material zeroized
 
     // No match found
     let result = js_sys::Object::new();
@@ -879,7 +920,7 @@ If I could offer you only one tip for the future, sunscreen would be it.";
     // ── Full container create/open round-trip ───────────────────────
 
     /// Helper: create a container natively (without JsValue) for testing.
-    fn create_container_native(
+    pub(crate) fn create_container_native(
         real_msg: &str,
         decoy_msg: &str,
         real_pass: &str,
@@ -907,7 +948,7 @@ If I could offer you only one tip for the future, sunscreen would be it.";
     }
 
     /// Helper: open a container natively (without JsValue) for testing.
-    fn open_container_native(
+    pub(crate) fn open_container_native(
         container: &[u8],
         passphrase: &str,
         container_size: u32,
@@ -915,19 +956,26 @@ If I could offer you only one tip for the future, sunscreen would be it.";
         let slot_size = (container_size / 3) as usize;
         let safe_range = container_size - (container_size / 3) - 16;
 
+        // Constant-time derivation: derive ALL key materials before checking AEAD.
+        let mut derivations: Vec<(DerivedKeyMaterial, usize)> = Vec::with_capacity(16);
         for role in &["real", "decoy"] {
             for cc in 0..=MAX_COLLISION_COUNTER {
-                let mat = derive_key_material(passphrase, role, 256, 1, 1, cc).ok()?;
-                let offset = uniform_offset(&mat.offset_seeds, safe_range) as usize;
-                let end = offset + slot_size + 16;
-                if end > container.len() {
-                    continue;
+                if let Ok(mat) = derive_key_material(passphrase, role, 256, 1, 1, cc) {
+                    let offset = uniform_offset(&mat.offset_seeds, safe_range) as usize;
+                    derivations.push((mat, offset));
                 }
-                let sealed = &container[offset..end];
-                if let Some(plaintext) = aead_open(&mat.key, &mat.nonce, sealed) {
-                    if let Ok(message) = decode_slot(&plaintext) {
-                        return Some(message);
-                    }
+            }
+        }
+
+        for (mat, offset) in &derivations {
+            let end = *offset + slot_size + 16;
+            if end > container.len() {
+                continue;
+            }
+            let sealed = &container[*offset..end];
+            if let Some(plaintext) = aead_open(&mat.key, &mat.nonce, sealed) {
+                if let Ok(message) = decode_slot(&plaintext) {
+                    return Some(message);
                 }
             }
         }
@@ -1066,6 +1114,38 @@ If I could offer you only one tip for the future, sunscreen would be it.";
         let decoy = open_container_native(&container, "pass-d", 8192).unwrap();
         assert_eq!(real, "こんにちは世界");
         assert_eq!(decoy, "مرحبا بالعالم");
+    }
+
+    /// Regression test for proptest-discovered bug: Phase 2 collision resolution
+    /// zeroed decoy key material without checking the cross-phase combination
+    /// (Phase 1 decoy offset + Phase 2 real offset). Fixed in the collision
+    /// resolution logic by saving Phase 1 decoy key material.
+    #[test]
+    fn regression_empty_msg_4096_collision() {
+        let real_pass = r#"c[wd"&9?8W`Rfe.TZG6uo0eK*1V:"#;
+        let decoy_pass = r#"K"=*e> =<SEpB$"e"#;
+        let container_size = 4096u32;
+
+        let result = create_container_native("", "", real_pass, decoy_pass, container_size);
+        match result {
+            Ok((container, real_off, decoy_off)) => {
+                let slot_size = container_size / 3;
+                let slot_with_tag = slot_size + 16;
+                assert!(
+                    !slots_overlap(real_off, decoy_off, slot_with_tag),
+                    "Slots overlap: real={}, decoy={}", real_off, decoy_off
+                );
+
+                let real = open_container_native(&container, real_pass, container_size);
+                assert_eq!(real.as_deref(), Some(""), "Failed to recover real message");
+
+                let decoy = open_container_native(&container, decoy_pass, container_size);
+                assert_eq!(decoy.as_deref(), Some(""), "Failed to recover decoy message");
+            }
+            Err(e) => {
+                assert!(e.contains("collision"), "Unexpected error: {}", e);
+            }
+        }
     }
 
     #[test]
@@ -1402,5 +1482,258 @@ If I could offer you only one tip for the future, sunscreen would be it.";
         let sealed = aead_seal(&key, &nonce, &large).unwrap();
         let opened = aead_open(&key, &nonce, &sealed).unwrap();
         assert_eq!(opened, large);
+    }
+}
+
+// ─── Property-based tests (proptest) ─────────────────────────────────────
+
+#[cfg(test)]
+mod proptests {
+    use super::*;
+    use crate::tests::{create_container_native, open_container_native};
+    use proptest::prelude::*;
+
+    // ── Round-trip properties ────────────────────────────────────────
+
+    proptest! {
+        /// Any message that fits in the slot must survive encrypt → decrypt.
+        #[test]
+        fn roundtrip_any_message(
+            real_msg in "[ -~]{0,100}",   // printable ASCII up to 100 chars
+            decoy_msg in "[ -~]{0,100}",
+            real_pass in "[ -~]{8,32}",   // printable ASCII passphrases (min 8 chars)
+            decoy_pass in "[ -~]{8,32}",
+            size_idx in 0usize..4,
+        ) {
+            let sizes = [4096u32, 8192, 16384, 32768];
+            let container_size = sizes[size_idx];
+            let max_len = (container_size / 3 - 4) as usize;
+
+            // Skip if message too long for this container size
+            let real_bytes = real_msg.as_bytes();
+            let decoy_bytes = decoy_msg.as_bytes();
+            if real_bytes.len() > max_len || decoy_bytes.len() > max_len {
+                return Ok(());
+            }
+
+            // Ensure passphrases differ
+            let decoy_pass_actual = if real_pass == decoy_pass {
+                format!("{}_different", decoy_pass)
+            } else {
+                decoy_pass
+            };
+
+            let result = create_container_native(
+                &real_msg, &decoy_msg, &real_pass, &decoy_pass_actual, container_size,
+            );
+
+            match result {
+                Ok((container, _, _)) => {
+                    let recovered_real = open_container_native(&container, &real_pass, container_size);
+                    prop_assert_eq!(recovered_real.as_deref(), Some(real_msg.as_str()));
+
+                    let recovered_decoy = open_container_native(&container, &decoy_pass_actual, container_size);
+                    prop_assert_eq!(recovered_decoy.as_deref(), Some(decoy_msg.as_str()));
+                }
+                Err(e) => {
+                    // Only acceptable error is collision exhaustion
+                    prop_assert!(e.contains("collision"), "Unexpected error: {}", e);
+                }
+            }
+        }
+
+        /// AEAD round-trip: encrypt with any key/nonce, decrypt with same key/nonce.
+        #[test]
+        fn aead_roundtrip_property(
+            key in prop::array::uniform32(any::<u8>()),
+            nonce in prop::array::uniform12(any::<u8>()),
+            plaintext in prop::collection::vec(any::<u8>(), 0..1024),
+        ) {
+            let sealed = aead_seal(&key, &nonce, &plaintext).unwrap();
+            let opened = aead_open(&key, &nonce, &sealed).unwrap();
+            prop_assert_eq!(opened, plaintext);
+        }
+
+        /// Slot encode/decode round-trip for arbitrary messages.
+        #[test]
+        fn slot_roundtrip_property(
+            msg in prop::collection::vec(any::<u8>(), 0..200),
+        ) {
+            let slot_size = 256; // large enough for any test message
+            if msg.len() > slot_size - 4 {
+                return Ok(());
+            }
+
+            // Only test valid UTF-8 messages (decode_slot expects UTF-8)
+            if let Ok(text) = std::str::from_utf8(&msg) {
+                let slot = encode_slot(text.as_bytes(), slot_size).unwrap();
+                prop_assert_eq!(slot.len(), slot_size);
+                let decoded = decode_slot(&slot).unwrap();
+                prop_assert_eq!(decoded, text);
+            }
+        }
+    }
+
+    // ── Corruption detection properties ─────────────────────────────
+
+    proptest! {
+        /// Flipping any single bit in a sealed AEAD ciphertext must cause
+        /// decryption to fail (no partial plaintext).
+        #[test]
+        fn single_bit_flip_always_detected(
+            key in prop::array::uniform32(any::<u8>()),
+            nonce in prop::array::uniform12(any::<u8>()),
+            plaintext in prop::collection::vec(any::<u8>(), 1..128),
+            flip_byte in 0usize..144,  // max sealed len = 128 + 16
+        ) {
+            let sealed = aead_seal(&key, &nonce, &plaintext).unwrap();
+            if flip_byte >= sealed.len() {
+                return Ok(());
+            }
+
+            let mut corrupted = sealed.clone();
+            corrupted[flip_byte] ^= 0x01;
+            prop_assert!(aead_open(&key, &nonce, &corrupted).is_none());
+        }
+
+        /// Truncating a sealed ciphertext must cause decryption to fail.
+        #[test]
+        fn truncation_always_detected(
+            key in prop::array::uniform32(any::<u8>()),
+            nonce in prop::array::uniform12(any::<u8>()),
+            plaintext in prop::collection::vec(any::<u8>(), 1..128),
+            keep_bytes in 0usize..144,
+        ) {
+            let sealed = aead_seal(&key, &nonce, &plaintext).unwrap();
+            if keep_bytes >= sealed.len() {
+                return Ok(());
+            }
+
+            let truncated = &sealed[..keep_bytes];
+            prop_assert!(aead_open(&key, &nonce, truncated).is_none());
+        }
+
+        /// A random key must never decrypt a valid ciphertext (no false positives).
+        #[test]
+        fn wrong_key_never_decrypts(
+            key in prop::array::uniform32(any::<u8>()),
+            wrong_key in prop::array::uniform32(any::<u8>()),
+            nonce in prop::array::uniform12(any::<u8>()),
+            plaintext in prop::collection::vec(any::<u8>(), 0..64),
+        ) {
+            if key == wrong_key {
+                return Ok(());
+            }
+            let sealed = aead_seal(&key, &nonce, &plaintext).unwrap();
+            prop_assert!(aead_open(&wrong_key, &nonce, &sealed).is_none());
+        }
+    }
+
+    // ── Offset distribution properties ──────────────────────────────
+
+    proptest! {
+        /// Offset must always be within [0, range) for any seed.
+        #[test]
+        fn offset_always_in_range(
+            seeds in prop::array::uniform20(any::<u8>()),
+            range in 1u32..100_000,
+        ) {
+            let offset = uniform_offset(&seeds, range);
+            prop_assert!(offset < range, "offset {} >= range {}", offset, range);
+        }
+
+        /// Same seeds → same offset (determinism).
+        #[test]
+        fn offset_deterministic_property(
+            seeds in prop::array::uniform20(any::<u8>()),
+            range in 1u32..100_000,
+        ) {
+            let a = uniform_offset(&seeds, range);
+            let b = uniform_offset(&seeds, range);
+            prop_assert_eq!(a, b);
+        }
+    }
+
+    // ── Slot isolation properties ───────────────────────────────────
+
+    proptest! {
+        /// For any two passphrases and any valid container size,
+        /// create_container_native must either succeed with non-overlapping
+        /// slots OR fail with a collision error. It must never silently overlap.
+        #[test]
+        fn slot_isolation_guaranteed(
+            real_pass in ".{4,20}",
+            decoy_pass in ".{4,20}",
+            size_idx in 0usize..4,
+        ) {
+            let sizes = [4096u32, 8192, 16384, 32768];
+            let container_size = sizes[size_idx];
+            let slot_size = container_size / 3;
+            let slot_with_tag = slot_size + 16;
+
+            let decoy_pass_actual = if real_pass == decoy_pass {
+                format!("{}_x", decoy_pass)
+            } else {
+                decoy_pass
+            };
+
+            match derive_all_keys(&real_pass, &decoy_pass_actual, container_size, 256, 1, 1) {
+                Ok(keys) => {
+                    prop_assert!(
+                        !slots_overlap(keys.real_offset, keys.decoy_offset, slot_with_tag),
+                        "Slots overlap: real={}, decoy={}, slot_with_tag={}",
+                        keys.real_offset, keys.decoy_offset, slot_with_tag
+                    );
+                }
+                Err(e) => {
+                    prop_assert!(e.contains("collision"));
+                }
+            }
+        }
+    }
+
+    // ── Container indistinguishability ───────────────────────────────
+
+    #[test]
+    fn container_entropy_high() {
+        // Statistical test: container bytes should have near-uniform distribution.
+        // Chi-squared test with 256 bins — expect p-value > 0.01.
+        let (container, _, _) = create_container_native(
+            "test message", "decoy msg", "pass-r", "pass-d", 32768,
+        ).unwrap();
+
+        let mut counts = [0u64; 256];
+        for &b in &container {
+            counts[b as usize] += 1;
+        }
+
+        let expected = container.len() as f64 / 256.0;
+        let chi_sq: f64 = counts.iter()
+            .map(|&c| {
+                let diff = c as f64 - expected;
+                diff * diff / expected
+            })
+            .sum();
+
+        // With 255 degrees of freedom, chi-squared critical value at p=0.001 is ~310.
+        // A good random distribution should be well below this.
+        assert!(chi_sq < 400.0, "Container bytes have suspicious distribution: chi²={:.1}", chi_sq);
+    }
+
+    #[test]
+    fn containers_with_same_inputs_differ() {
+        // CSPRNG padding must make each container unique.
+        let mut containers = Vec::new();
+        for _ in 0..5 {
+            let (c, _, _) = create_container_native(
+                "msg", "decoy", "pass-r", "pass-d", 4096,
+            ).unwrap();
+            containers.push(c);
+        }
+        for i in 0..containers.len() {
+            for j in (i+1)..containers.len() {
+                assert_ne!(containers[i], containers[j], "Containers {} and {} are identical", i, j);
+            }
+        }
     }
 }
