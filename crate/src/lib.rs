@@ -24,6 +24,25 @@ const MAX_COLLISION_COUNTER: u32 = 7;
 const AAD: &[u8] = b"shadow-vault:v1";
 const VALID_CONTAINER_SIZES: [u32; 4] = [4096, 8192, 16384, 32768];
 
+// Minimum Argon2id parameters enforced at the WASM boundary.
+// Prevents crafted Worker messages from creating trivially brute-forceable containers.
+const MIN_MEMORY_KIB: u32 = 16384; // 16 MB
+const MIN_ITERATIONS: u32 = 2;
+const MIN_PARALLELISM: u32 = 1;
+
+fn validate_argon2_params(memory_kib: u32, iterations: u32, parallelism: u32) -> Result<(), String> {
+    if memory_kib < MIN_MEMORY_KIB {
+        return Err(format!("Memory too low: {} KiB, minimum {} KiB", memory_kib, MIN_MEMORY_KIB));
+    }
+    if iterations < MIN_ITERATIONS {
+        return Err(format!("Iterations too low: {}, minimum {}", iterations, MIN_ITERATIONS));
+    }
+    if parallelism < MIN_PARALLELISM {
+        return Err(format!("Parallelism too low: {}, minimum {}", parallelism, MIN_PARALLELISM));
+    }
+    Ok(())
+}
+
 // ─── Derived key material (zeroized on drop) ────────────────────────────
 
 struct DerivedKeyMaterial {
@@ -331,6 +350,8 @@ pub fn create_container(
     if !VALID_CONTAINER_SIZES.contains(&container_size) {
         return Err(JsValue::from_str("Invalid container size"));
     }
+    validate_argon2_params(memory_kib, iterations, parallelism)
+        .map_err(|e| JsValue::from_str(&e))?;
     let slot_size = (container_size / 3) as usize;
 
     // Fill container with CSPRNG random bytes
@@ -405,6 +426,8 @@ pub fn open_container(
     if !VALID_CONTAINER_SIZES.contains(&container_size) {
         return Err(JsValue::from_str("Invalid container size"));
     }
+    validate_argon2_params(memory_kib, iterations, parallelism)
+        .map_err(|e| JsValue::from_str(&e))?;
     let slot_size = (container_size / 3) as usize;
     let safe_range = container_size - (container_size / 3) - 16;
 
