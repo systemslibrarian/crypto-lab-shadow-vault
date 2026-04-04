@@ -21,7 +21,10 @@ async function startup() {
     await init();
     // Run self-test as part of initialization
     const testResult = self_test();
-    initialized = true;
+    // Only mark initialized if self-test passes — refuse all operations otherwise
+    if (testResult && testResult.passed) {
+      initialized = true;
+    }
     self.postMessage({ type: 'ready', selfTest: testResult });
   } catch (err) {
     self.postMessage({
@@ -37,6 +40,24 @@ self.onmessage = (e) => {
   if (!initialized) {
     self.postMessage({ id, error: 'WASM not initialized' });
     return;
+  }
+
+  /**
+   * Best-effort cleanup of sensitive string/buffer args after crypto
+   * operations complete. JS strings are immutable and GC-managed, so
+   * overwriting the property only removes the Worker-scope reference —
+   * the engine may retain copies. This is defense-in-depth, not a
+   * guarantee (see THREAT_MODEL.md §2.2).
+   */
+  function clearArgs() {
+    if (args.realPassphrase !== undefined)  args.realPassphrase = '';
+    if (args.decoyPassphrase !== undefined) args.decoyPassphrase = '';
+    if (args.passphrase !== undefined)      args.passphrase = '';
+    if (args.realMessage !== undefined)     args.realMessage = '';
+    if (args.decoyMessage !== undefined)    args.decoyMessage = '';
+    if (args.containerData instanceof Uint8Array) {
+      args.containerData.fill(0);
+    }
   }
 
   // Yield before blocking crypto work so the main thread
@@ -56,6 +77,7 @@ self.onmessage = (e) => {
             args.iterations,
             args.parallelism,
           );
+          clearArgs();
           // The container Uint8Array from WASM needs to be transferred
           // Convert to plain object for postMessage
           if (result && result.container) {
@@ -82,6 +104,7 @@ self.onmessage = (e) => {
             args.iterations,
             args.parallelism,
           );
+          clearArgs();
           break;
 
         case 'get_max_message_length':
@@ -89,11 +112,13 @@ self.onmessage = (e) => {
           break;
 
         default:
+          clearArgs();
           self.postMessage({ id, error: `Unknown command: ${command}` });
           return;
       }
       self.postMessage({ id, result });
     } catch (err) {
+      clearArgs();
       self.postMessage({
         id,
         error: err instanceof Error ? err.message : String(err),
