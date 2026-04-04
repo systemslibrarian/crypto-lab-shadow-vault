@@ -23,17 +23,17 @@
     background: #2a2a2a;
   }
   ::-webkit-scrollbar-thumb {
-    background: #4a4a4a;
+    background: #555555;
     border-radius: 3px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #5a5a5a;
+    background: #666666;
   }
 
   input[type="range"] {
     -webkit-appearance: none;
     height: 4px;
-    background: #4a4a4a;
+    background: #555555;
     border-radius: 2px;
     outline: none;
   }
@@ -42,14 +42,14 @@
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    background: #cc4444;
+    background: #e05555;
     cursor: pointer;
   }
   input[type="range"]::-moz-range-thumb {
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    background: #cc4444;
+    background: #e05555;
     border: none;
     cursor: pointer;
   }
@@ -64,29 +64,29 @@
   }
 
   .container-cell--padding {
-    background-color: #353535;
+    background-color: #383838;
   }
 
   .container-cell--real {
-    background-color: #cc4444;
-    box-shadow: 0 0 3px rgba(204, 68, 68, 0.5);
+    background-color: #e05555;
+    box-shadow: 0 0 3px rgba(224, 85, 85, 0.5);
   }
 
   .container-cell--decoy {
-    background-color: #e8b830;
-    box-shadow: 0 0 3px rgba(232, 184, 48, 0.5);
+    background-color: #f0c840;
+    box-shadow: 0 0 3px rgba(240, 200, 64, 0.5);
   }
 
   .step-pending {
-    color: #a89888;
+    color: #c8beb0;
   }
 
   .step-active {
-    color: #f5f0e8;
+    color: #ffffff;
   }
 
   .step-done {
-    color: #55aa66;
+    color: #66cc77;
   }
 }
 
@@ -103,13 +103,13 @@
     }
 
     .text-xs {
-      font-size: 0.8125rem;
-      line-height: 1.4;
+      font-size: 0.875rem;
+      line-height: 1.5;
     }
 
     .text-sm {
-      font-size: 0.9375rem;
-      line-height: 1.5;
+      font-size: 1rem;
+      line-height: 1.6;
     }
   }
 
