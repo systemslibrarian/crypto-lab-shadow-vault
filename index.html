@@ -9,9 +9,9 @@
     <title>Shadow Vault — Deniable Encryption</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet" />
   </head>
-  <body class="bg-vault-bg text-vault-text font-mono min-h-screen antialiased">
+  <body class="bg-vault-bg text-vault-text font-sans min-h-screen antialiased leading-relaxed">
     <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:bg-vault-crimson focus:text-white focus:px-4 focus:py-2 focus:z-50 focus:rounded">Skip to content</a>
     <div id="app" class="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       <!-- Header -->
@@ -244,7 +244,7 @@
         <h2 id="modal-title" class="font-display text-xl font-semibold">How Shadow Vault Works</h2>
         <button id="btn-close-modal" class="text-vault-text-dim hover:text-vault-text min-w-[44px] min-h-[44px] flex items-center justify-center text-2xl" aria-label="Close">&times;</button>
       </div>
-      <div class="p-5 space-y-6 text-sm leading-relaxed">
+      <div class="p-5 space-y-6 text-sm leading-relaxed" style="line-height:1.7">
         <section>
           <h3 class="font-display text-lg font-semibold mb-2 text-vault-crimson">The Deniability Problem</h3>
           <p>Standard encryption proves a message exists. Under coercion, possessing an encrypted file is itself incriminating. An adversary who compels you to surrender your passphrase gains the message — and knows there's nothing else to find.</p>

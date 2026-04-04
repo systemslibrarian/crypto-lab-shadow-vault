@@ -20,6 +20,7 @@ export default {
         },
       },
       fontFamily: {
+        sans: ['IBM Plex Sans', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
         display: ['Playfair Display', 'Georgia', 'serif'],
         mono: ['IBM Plex Mono', 'Consolas', 'monospace'],
       },
