@@ -159,9 +159,14 @@ export function initDecrypt(): void {
       // Clear passphrase from memory
       passInput.value = '';
     } catch (err: unknown) {
-      workingStep.className = 'text-vault-danger';
-      workingStep.textContent = '✗ No message found for this passphrase.';
-      console.error('Decrypt error:', err);
+      // SECURITY: All errors (WASM crash, Worker timeout, malformed input)
+      // MUST show the same generic message as wrong-passphrase.
+      // Do NOT log the error detail to the console in production —
+      // it could leak information about container validity.
+      markStepDone(workingStep);
+      const fail = addStep('No message found for this passphrase.');
+      fail.className = 'text-vault-danger';
+      fail.textContent = '✗ No message found for this passphrase.';
     } finally {
       btnDecrypt.textContent = 'OPEN VAULT';
       validateForm();
@@ -173,6 +178,10 @@ export function initDecrypt(): void {
     await navigator.clipboard.writeText(text);
     btnCopy.textContent = 'COPIED';
     setTimeout(() => { btnCopy.textContent = 'COPY'; }, 1500);
+    // Clear clipboard after 30 seconds to limit exposure
+    setTimeout(() => {
+      navigator.clipboard.writeText('').catch(() => { /* ignore */ });
+    }, 30_000);
   });
 
   btnClear.addEventListener('click', clearDecryptedMessage);
