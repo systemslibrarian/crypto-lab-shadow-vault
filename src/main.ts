@@ -40,12 +40,14 @@ function initModal(): void {
     modal.showModal();
     overlay.classList.remove('hidden');
     overlay.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
   }
 
   function closeModal() {
     modal.close();
     overlay.classList.add('hidden');
     overlay.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
   }
 
   btn.addEventListener('click', openModal);

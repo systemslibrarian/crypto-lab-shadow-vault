@@ -69,6 +69,9 @@ export async function deriveKeyMaterial(
     offsetSeed: new DataView(output.buffer, output.byteOffset, output.byteLength).getUint32(44, true),
   };
 
+  // Zero the raw output buffer — material fields are already copied via .slice()
+  output.fill(0);
+
   return { material, durationMs };
 }
 

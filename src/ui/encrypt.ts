@@ -29,13 +29,16 @@ export function initEncrypt(): void {
   const btnDownload = document.getElementById('btn-download')!;
   const downloadFilename = document.getElementById('download-filename')!;
 
-  // Character counters
+  // Byte counters (UTF-8 — matches validation logic)
+  function updateByteCount(textarea: HTMLTextAreaElement, counter: HTMLElement): void {
+    counter.textContent = String(new TextEncoder().encode(textarea.value).length);
+  }
   realMsg.addEventListener('input', () => {
-    realCount.textContent = String(realMsg.value.length);
+    updateByteCount(realMsg, realCount);
     validateForm();
   });
   decoyMsg.addEventListener('input', () => {
-    decoyCount.textContent = String(decoyMsg.value.length);
+    updateByteCount(decoyMsg, decoyCount);
     validateForm();
   });
   realPass.addEventListener('input', validateForm);

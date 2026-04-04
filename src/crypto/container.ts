@@ -174,6 +174,15 @@ export function downloadContainer(container: Uint8Array, filename?: string): voi
 }
 
 export async function uploadContainer(file: File): Promise<Uint8Array> {
+  // Guard against oversized files before reading into memory
+  const maxValid = VALID_CONTAINER_SIZES[VALID_CONTAINER_SIZES.length - 1];
+  if (file.size > maxValid) {
+    throw new Error(
+      `File too large: ${file.size.toLocaleString()} bytes. ` +
+      `Maximum container size is ${maxValid.toLocaleString()} bytes.`
+    );
+  }
+
   const buffer = await file.arrayBuffer();
   const container = new Uint8Array(buffer);
 
