@@ -20,36 +20,36 @@
     width: 6px;
   }
   ::-webkit-scrollbar-track {
-    background: #0d0d0d;
+    background: #1a1a1a;
   }
   ::-webkit-scrollbar-thumb {
-    background: #2a2a2a;
+    background: #3a3a3a;
     border-radius: 3px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #3a3a3a;
+    background: #4a4a4a;
   }
 
   input[type="range"] {
     -webkit-appearance: none;
     height: 4px;
-    background: #2a2a2a;
+    background: #3a3a3a;
     border-radius: 2px;
     outline: none;
   }
   input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 16px;
-    height: 16px;
+    width: 20px;
+    height: 20px;
     border-radius: 50%;
-    background: #8b1a1a;
+    background: #a52a2a;
     cursor: pointer;
   }
   input[type="range"]::-moz-range-thumb {
-    width: 16px;
-    height: 16px;
+    width: 20px;
+    height: 20px;
     border-radius: 50%;
-    background: #8b1a1a;
+    background: #a52a2a;
     border: none;
     cursor: pointer;
   }
@@ -64,33 +64,55 @@
   }
 
   .container-cell--padding {
-    background-color: #1a1a1a;
+    background-color: #262626;
   }
 
   .container-cell--real {
-    background-color: #8b1a1a;
-    box-shadow: 0 0 3px rgba(139, 26, 26, 0.5);
+    background-color: #a52a2a;
+    box-shadow: 0 0 3px rgba(165, 42, 42, 0.5);
   }
 
   .container-cell--decoy {
-    background-color: #b8860b;
-    box-shadow: 0 0 3px rgba(184, 134, 11, 0.5);
+    background-color: #d4a017;
+    box-shadow: 0 0 3px rgba(212, 160, 23, 0.5);
   }
 
   .step-pending {
-    color: #5a5248;
+    color: #8a7e72;
   }
 
   .step-active {
-    color: #e8dcc8;
+    color: #f0e6d6;
   }
 
   .step-done {
-    color: #2d6b3f;
+    color: #3d8b50;
   }
 }
 
 @layer utilities {
+  /* Mobile readability */
+  @media (max-width: 640px) {
+    body {
+      font-size: 16px;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    input, textarea, select, button {
+      font-size: 16px !important;
+    }
+
+    .text-xs {
+      font-size: 0.8125rem;
+      line-height: 1.4;
+    }
+
+    .text-sm {
+      font-size: 0.9375rem;
+      line-height: 1.5;
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .container-cell {
       transition: none !important;

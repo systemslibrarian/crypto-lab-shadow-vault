@@ -13,12 +13,12 @@
   </head>
   <body class="bg-vault-bg text-vault-text font-mono min-h-screen antialiased">
     <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:bg-vault-crimson focus:text-white focus:px-4 focus:py-2 focus:z-50 focus:rounded">Skip to content</a>
-    <div id="app" class="max-w-4xl mx-auto px-4 py-8">
+    <div id="app" class="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       <!-- Header -->
-      <header class="mb-8">
-        <div class="flex items-center justify-between">
+      <header class="mb-6 sm:mb-8">
+        <div class="flex items-center justify-between gap-3">
           <div>
-            <h1 class="font-display text-3xl font-bold tracking-tight flex items-center gap-2">
+            <h1 class="font-display text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2">
               <span class="text-vault-crimson">◈</span> SHADOW VAULT
             </h1>
             <p class="text-vault-text-dim text-sm mt-1">Two messages. One container. No trace.</p>
@@ -239,7 +239,7 @@
 
     <!-- How It Works Modal -->
     <div id="modal-overlay" class="fixed inset-0 bg-black/80 z-40 hidden" aria-hidden="true"></div>
-    <dialog id="modal-how" class="fixed inset-0 z-50 max-w-2xl mx-auto my-8 bg-vault-surface border border-vault-border rounded-lg p-0 text-vault-text max-h-[85vh] overflow-y-auto" aria-labelledby="modal-title">
+    <dialog id="modal-how" class="fixed inset-0 z-50 max-w-2xl w-[calc(100%-2rem)] mx-auto my-4 sm:my-8 bg-vault-surface border border-vault-border rounded-lg p-0 text-vault-text max-h-[90vh] overflow-y-auto" aria-labelledby="modal-title">
       <div class="sticky top-0 bg-vault-surface border-b border-vault-border p-5 flex items-center justify-between z-10">
         <h2 id="modal-title" class="font-display text-xl font-semibold">How Shadow Vault Works</h2>
         <button id="btn-close-modal" class="text-vault-text-dim hover:text-vault-text min-w-[44px] min-h-[44px] flex items-center justify-center text-2xl" aria-label="Close">&times;</button>
