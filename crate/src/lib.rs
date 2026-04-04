@@ -353,7 +353,10 @@ fn derive_all_keys(
             decoy_key = phase1_decoy_key;
             decoy_nonce = phase1_decoy_nonce;
             decoy_offset = phase1_decoy_offset;
-            phase2_resolved = true;
+            #[allow(unused_assignments)]
+            {
+                phase2_resolved = true;
+            }
         }
 
         // Zeroize saved Phase 1 decoy material (used or not)
