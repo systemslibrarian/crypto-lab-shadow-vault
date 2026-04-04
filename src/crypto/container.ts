@@ -17,7 +17,7 @@ import { chachaPoly1305Seal, chachaPoly1305Open } from './chacha20poly1305.js';
 import { deriveKeyMaterial } from './argon2.js';
 import { deriveAllKeys } from '../derive/keys.js';
 import type { VaultConfig, EncryptResult, DecryptResult, ContainerSize } from '../types/vault.js';
-import { VALID_CONTAINER_SIZES } from '../types/vault.js';
+import { VALID_CONTAINER_SIZES, MAX_COLLISION_COUNTER } from '../types/vault.js';
 
 const AAD = new TextEncoder().encode('shadow-vault:v1');
 
@@ -120,8 +120,8 @@ export async function openContainer(
 
   // Try both roles — the passphrase might be real or decoy
   for (const role of ['real', 'decoy'] as const) {
-    // Try with collision counters 0-3
-    for (let cc = 0; cc <= 3; cc++) {
+    // Try with collision counters 0..MAX_COLLISION_COUNTER
+    for (let cc = 0; cc <= MAX_COLLISION_COUNTER; cc++) {
       onProgress(cc === 0 && role === 'real'
         ? 'Deriving key (Argon2id)...'
         : 'Locating slot...');

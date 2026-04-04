@@ -47,3 +47,11 @@ export const MINIMUM_PARAMS: Argon2Params = {
   parallelism: 2,
   hashLength: 64,
 };
+
+/**
+ * Maximum collision counter used during slot offset collision resolution.
+ * Must be consistent between encryption (deriveAllKeys) and decryption (openContainer).
+ * Higher values improve collision resolution reliability but increase decrypt time
+ * for wrong passphrases (each cc is a full Argon2id derivation).
+ */
+export const MAX_COLLISION_COUNTER = 7;
