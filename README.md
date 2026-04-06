@@ -2,7 +2,7 @@
 
 **Deniable encryption — two messages, one container, no trace.**
 
-**[Live Demo](https://systemslibrarian.github.io/shadow-vault/)**
+**[Live Demo](https://systemslibrarian.github.io/crypto-lab-shadow-vault/)**
 
 You are detained. They demand your passphrase. You comply. They decrypt a plausible message — a grocery list, a journal entry, a note to a friend. What they cannot prove, cannot detect, and cannot even test for: a second encrypted message hidden at a different offset in the same container, decryptable only with a different passphrase they don't know exists.
 
@@ -102,8 +102,8 @@ cargo install wasm-pack
 ```
 
 ```bash
-git clone https://github.com/systemslibrarian/shadow-vault.git
-cd shadow-vault
+git clone https://github.com/systemslibrarian/crypto-lab-shadow-vault.git
+cd crypto-lab-shadow-vault
 npm install
 npm run wasm     # Build Rust crypto → WASM
 npm run dev      # Start dev server
