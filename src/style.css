@@ -2,6 +2,67 @@
 @tailwind components;
 @tailwind utilities;
 
+:root[data-theme='dark'] {
+  --vault-bg: #2a2a2a;
+  --vault-surface: #383838;
+  --vault-border: #555555;
+  --vault-crimson: #e05555;
+  --vault-crimson-light: #ee6666;
+  --vault-amber: #f0c840;
+  --vault-amber-light: #f5d860;
+  --vault-text: #ffffff;
+  --vault-text-dim: #f0ece4;
+  --vault-text-muted: #e0d8cc;
+  --vault-danger: #f06060;
+  --vault-success: #66cc77;
+}
+
+:root[data-theme='light'] {
+  --vault-bg: #f5f2eb;
+  --vault-surface: #ffffff;
+  --vault-border: #c7bdae;
+  --vault-crimson: #b64040;
+  --vault-crimson-light: #c74f4f;
+  --vault-amber: #b68710;
+  --vault-amber-light: #c79a21;
+  --vault-text: #221d17;
+  --vault-text-dim: #3e352a;
+  --vault-text-muted: #5b5144;
+  --vault-danger: #b33030;
+  --vault-success: #2f7d4b;
+}
+
+[data-theme] .bg-vault-bg { background-color: var(--vault-bg) !important; }
+[data-theme] .bg-vault-surface { background-color: var(--vault-surface) !important; }
+[data-theme] .border-vault-border { border-color: var(--vault-border) !important; }
+[data-theme] .text-vault-text { color: var(--vault-text) !important; }
+[data-theme] .text-vault-text-dim { color: var(--vault-text-dim) !important; }
+[data-theme] .text-vault-text-muted { color: var(--vault-text-muted) !important; }
+[data-theme] .text-vault-crimson { color: var(--vault-crimson) !important; }
+[data-theme] .text-vault-amber { color: var(--vault-amber) !important; }
+[data-theme] .text-vault-danger { color: var(--vault-danger) !important; }
+[data-theme] .text-vault-success { color: var(--vault-success) !important; }
+[data-theme] .bg-vault-crimson { background-color: var(--vault-crimson) !important; }
+[data-theme] .hover\:bg-vault-crimson-light:hover { background-color: var(--vault-crimson-light) !important; }
+[data-theme] .hover\:text-vault-text:hover { color: var(--vault-text) !important; }
+[data-theme] .hover\:border-vault-text:hover { border-color: var(--vault-text) !important; }
+[data-theme] .focus\:border-vault-crimson:focus { border-color: var(--vault-crimson) !important; }
+[data-theme] .focus\:ring-vault-crimson:focus { --tw-ring-color: var(--vault-crimson) !important; }
+[data-theme] .focus\:border-vault-amber:focus { border-color: var(--vault-amber) !important; }
+[data-theme] .focus\:ring-vault-amber:focus { --tw-ring-color: var(--vault-amber) !important; }
+[data-theme] .accent-vault-crimson { accent-color: var(--vault-crimson) !important; }
+
+#theme-toggle {
+  border-color: var(--vault-border);
+  background-color: var(--vault-surface);
+  color: var(--vault-text);
+}
+
+#theme-toggle:hover {
+  background-color: var(--vault-bg);
+  color: var(--vault-text);
+}
+
 @layer base {
   /* Subtle noise texture */
   body {
@@ -26,20 +87,20 @@
     width: 6px;
   }
   ::-webkit-scrollbar-track {
-    background: #2a2a2a;
+    background: var(--vault-bg);
   }
   ::-webkit-scrollbar-thumb {
-    background: #555555;
+    background: var(--vault-border);
     border-radius: 3px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #666666;
+    background: var(--vault-text-muted);
   }
 
   input[type="range"] {
     -webkit-appearance: none;
     height: 4px;
-    background: #555555;
+    background: var(--vault-border);
     border-radius: 2px;
     outline: none;
   }
@@ -48,14 +109,14 @@
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    background: #e05555;
+    background: var(--vault-crimson);
     cursor: pointer;
   }
   input[type="range"]::-moz-range-thumb {
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    background: #e05555;
+    background: var(--vault-crimson);
     border: none;
     cursor: pointer;
   }
@@ -70,29 +131,29 @@
   }
 
   .container-cell--padding {
-    background-color: #383838;
+    background-color: var(--vault-surface);
   }
 
   .container-cell--real {
-    background-color: #e05555;
-    box-shadow: 0 0 3px rgba(224, 85, 85, 0.5);
+    background-color: var(--vault-crimson);
+    box-shadow: 0 0 3px color-mix(in srgb, var(--vault-crimson) 50%, transparent);
   }
 
   .container-cell--decoy {
-    background-color: #f0c840;
-    box-shadow: 0 0 3px rgba(240, 200, 64, 0.5);
+    background-color: var(--vault-amber);
+    box-shadow: 0 0 3px color-mix(in srgb, var(--vault-amber) 50%, transparent);
   }
 
   .step-pending {
-    color: #e0d8cc;
+    color: var(--vault-text-muted);
   }
 
   .step-active {
-    color: #ffffff;
+    color: var(--vault-text);
   }
 
   .step-done {
-    color: #66cc77;
+    color: var(--vault-success);
   }
 }
 

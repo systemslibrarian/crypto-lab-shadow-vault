@@ -1,12 +1,11 @@
 import { defineConfig } from 'vite';
 
-const repoName = process.env.GITHUB_PAGES_REPO_NAME?.trim();
-const base = repoName ? `/${repoName}/` : '/';
+const base = '/crypto-lab-shadow-vault/';
 
 export default defineConfig({
   base,
   build: {
-    outDir: 'out',
+    outDir: 'dist',
     target: 'esnext',
   },
 });

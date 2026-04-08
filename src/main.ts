@@ -9,6 +9,30 @@ import { initEncrypt } from './ui/encrypt.js';
 import { initDecrypt } from './ui/decrypt.js';
 import { initParams } from './ui/params.js';
 
+// --- Theme toggle ---
+function initThemeToggle(): void {
+  const root = document.documentElement;
+  const button = document.getElementById('theme-toggle') as HTMLButtonElement | null;
+  if (!button) return;
+
+  const applyTheme = (theme: 'dark' | 'light') => {
+    root.setAttribute('data-theme', theme);
+    button.textContent = theme === 'dark' ? '🌙' : '☀️';
+    button.setAttribute('aria-label', theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+  };
+
+  const saved = localStorage.getItem('theme');
+  const initialTheme: 'dark' | 'light' = saved === 'light' ? 'light' : 'dark';
+  applyTheme(initialTheme);
+
+  button.addEventListener('click', () => {
+    const currentTheme = root.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+    const nextTheme: 'dark' | 'light' = currentTheme === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('theme', nextTheme);
+    applyTheme(nextTheme);
+  });
+}
+
 // --- WASM init + self-test ---
 async function initSelfTest(): Promise<void> {
   const statusEl = document.getElementById('self-test-status')!;
@@ -120,6 +144,7 @@ function initSecurityCleanup(): void {
 
 // --- Init ---
 document.addEventListener('DOMContentLoaded', async () => {
+  initThemeToggle();
   initTabs();
   initParams();
   initEncrypt();
