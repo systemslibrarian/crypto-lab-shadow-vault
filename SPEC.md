@@ -5,7 +5,7 @@
 **Format identifier:** `shadow-vault:v1` (used as AEAD AAD and salt prefix)  
 **Normative RFCs:** [RFC 9106](https://www.rfc-editor.org/rfc/rfc9106) (Argon2), [RFC 8439](https://www.rfc-editor.org/rfc/rfc8439) (ChaCha20-Poly1305)
 
-This document is the authoritative definition of the Shadow Vault container format. All implementations MUST conform to this specification. Conformance is enforced by pinned deterministic test vectors and 65+ automated tests.
+This document is the authoritative definition of the Shadow Vault container format. All implementations MUST conform to this specification. Conformance is enforced by pinned deterministic test vectors and 75+ automated tests.
 
 ---
 
@@ -98,6 +98,8 @@ The salt is always exactly 32 bytes (the full SHA-256 digest).
 **Format-critical:** Changing the algorithm, version, or output length breaks all existing containers.
 
 **Not format-critical:** Changing default parameter values does not break compatibility, but the *same* parameters used during creation MUST be used during opening. Parameters are not stored in the container.
+
+**Boundary-enforced minimums (implementation requirement):** Both `create_container()` and `open_container()` MUST reject parameters below `memory_kib = 16384`, `iterations = 2`, `parallelism = 1` via `validate_argon2_params()`. These minimums are not part of the on-disk format — a container created under different parameters is still readable when the same parameters are supplied — but conforming implementations MUST enforce them at the trust boundary so a crafted Worker/WASM call cannot produce a trivially brute-forceable container. See [INVARIANTS.md](INVARIANTS.md) and [THREAT_MODEL.md](THREAT_MODEL.md) §1.3.
 
 ### 3.3 Output Layout
 

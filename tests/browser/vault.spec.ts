@@ -161,9 +161,14 @@ test.describe('Security Cleanup', () => {
     expect(csp).toContain("default-src 'none'");
     expect(csp).toContain("script-src 'self'");
     expect(csp).toContain("worker-src 'self'");
-    // style-src requires 'unsafe-inline' for Google Fonts integration
+    // style-src needs 'unsafe-inline' for Tailwind/Vite runtime style injection
     expect(csp).toContain("style-src 'self' 'unsafe-inline'");
     expect(csp).not.toContain("'unsafe-eval'");
+
+    // Self-hosted assets only — no third-party origins (fonts are bundled).
+    expect(csp).toContain("font-src 'self'");
+    expect(csp).not.toContain('googleapis');
+    expect(csp).not.toContain('gstatic');
   });
 });
 

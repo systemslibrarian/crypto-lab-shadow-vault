@@ -5,25 +5,29 @@
 :root[data-theme='dark'] {
   --vault-bg: #2a2a2a;
   --vault-surface: #383838;
-  --vault-border: #555555;
-  --vault-crimson: #e05555;
-  --vault-crimson-light: #ee6666;
+  --vault-border: #8a8a8a;
+  /* crimson = button BACKGROUND (white text ≥4.5:1); crimson-text = accent TEXT
+     on dark surfaces (≥4.5:1). Decoupled because they need opposite luminance. */
+  --vault-crimson: #c62828;
+  --vault-crimson-light: #d23f3f;
+  --vault-crimson-text: #f28b82;
   --vault-amber: #f0c840;
   --vault-amber-light: #f5d860;
   --vault-text: #ffffff;
   --vault-text-dim: #f0ece4;
   --vault-text-muted: #e0d8cc;
-  --vault-danger: #f06060;
+  --vault-danger: #ff9999;
   --vault-success: #66cc77;
 }
 
 :root[data-theme='light'] {
   --vault-bg: #f5f2eb;
   --vault-surface: #ffffff;
-  --vault-border: #c7bdae;
+  --vault-border: #807868;
   --vault-crimson: #b64040;
   --vault-crimson-light: #c74f4f;
-  --vault-amber: #b68710;
+  --vault-crimson-text: #b64040;
+  --vault-amber: #8f6a00;
   --vault-amber-light: #c79a21;
   --vault-text: #221d17;
   --vault-text-dim: #3e352a;
@@ -38,13 +42,14 @@
 [data-theme] .text-vault-text { color: var(--vault-text) !important; }
 [data-theme] .text-vault-text-dim { color: var(--vault-text-dim) !important; }
 [data-theme] .text-vault-text-muted { color: var(--vault-text-muted) !important; }
-[data-theme] .text-vault-crimson { color: var(--vault-crimson) !important; }
+[data-theme] .text-vault-crimson { color: var(--vault-crimson-text) !important; }
 [data-theme] .text-vault-amber { color: var(--vault-amber) !important; }
 [data-theme] .text-vault-danger { color: var(--vault-danger) !important; }
 [data-theme] .text-vault-success { color: var(--vault-success) !important; }
 [data-theme] .bg-vault-crimson { background-color: var(--vault-crimson) !important; }
 [data-theme] .hover\:bg-vault-crimson-light:hover { background-color: var(--vault-crimson-light) !important; }
 [data-theme] .hover\:text-vault-text:hover { color: var(--vault-text) !important; }
+[data-theme] .hover\:text-vault-crimson-light:hover { color: var(--vault-crimson-text) !important; }
 [data-theme] .hover\:border-vault-text:hover { border-color: var(--vault-text) !important; }
 [data-theme] .focus\:border-vault-crimson:focus { border-color: var(--vault-crimson) !important; }
 [data-theme] .focus\:ring-vault-crimson:focus { --tw-ring-color: var(--vault-crimson) !important; }
@@ -81,6 +86,20 @@
   input[type="text"]:focus,
   textarea:focus {
     outline: none;
+  }
+
+  /* WCAG 2.4.7 — always show a clear, high-contrast focus ring for
+     keyboard users on every interactive control, regardless of theme. */
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible,
+  [tabindex]:focus-visible,
+  [role="tab"]:focus-visible {
+    outline: 2px solid var(--vault-crimson);
+    outline-offset: 2px;
+    border-radius: 2px;
   }
 
   ::-webkit-scrollbar {

@@ -2,6 +2,17 @@
  * Shadow Vault — main entry point.
  * Initializes WASM crypto worker, self-test, UI modules, and security cleanup.
  */
+// Self-hosted fonts (bundled, same-origin) — no third-party requests at runtime.
+import '@fontsource/ibm-plex-sans/400.css';
+import '@fontsource/ibm-plex-sans/500.css';
+import '@fontsource/ibm-plex-sans/600.css';
+import '@fontsource/ibm-plex-sans/700.css';
+import '@fontsource/ibm-plex-mono/400.css';
+import '@fontsource/ibm-plex-mono/500.css';
+import '@fontsource/ibm-plex-mono/600.css';
+import '@fontsource/playfair-display/400.css';
+import '@fontsource/playfair-display/600.css';
+import '@fontsource/playfair-display/700.css';
 import './style.css';
 import { initCrypto } from './crypto/wasm.js';
 import { initTabs } from './ui/tabs.js';
@@ -51,7 +62,6 @@ async function initSelfTest(): Promise<void> {
       const btnDecrypt = document.getElementById('btn-decrypt') as HTMLButtonElement;
       if (btnEncrypt) btnEncrypt.disabled = true;
       if (btnDecrypt) btnDecrypt.disabled = true;
-      console.error('Self-test failures:', result.failures);
     }
   } catch (err) {
     statusEl.textContent = `❌ Crypto engine failed to load: ${err instanceof Error ? err.message : 'unknown error'}`;
@@ -99,13 +109,12 @@ function initPasswordToggles(): void {
       const targetId = (btn as HTMLElement).dataset.target;
       if (!targetId) return;
       const input = document.getElementById(targetId) as HTMLInputElement;
-      if (input.type === 'password') {
-        input.type = 'text';
-        btn.textContent = '\ud83d\ude48';
-      } else {
-        input.type = 'password';
-        btn.textContent = '\ud83d\udc41';
-      }
+      const revealed = input.type === 'password';
+      input.type = revealed ? 'text' : 'password';
+      // Emoji is decorative; the accessible name comes from aria-label.
+      btn.textContent = revealed ? '\ud83d\ude48' : '\ud83d\udc41';
+      btn.setAttribute('aria-pressed', String(revealed));
+      btn.setAttribute('aria-label', revealed ? 'Hide passphrase' : 'Show passphrase');
     });
   });
 }

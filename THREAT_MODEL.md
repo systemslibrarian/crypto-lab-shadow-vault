@@ -108,7 +108,7 @@ Passphrases are passed to Argon2id as raw UTF-8 bytes with no Unicode normalizat
 
 Shadow Vault is served as static files from GitHub Pages. If the repository, CI pipeline, or CDN is compromised, the served code could be modified to exfiltrate passphrases.
 
-**Mitigation:** Subresource integrity is not used (the WASM module is self-hosted). Users who require high assurance should audit the source, build locally, and serve from a trusted origin.
+**Mitigation:** All runtime assets — HTML, JS, the WASM module, and fonts — are self-hosted same-origin, so the app makes no third-party requests and works fully offline. There is no external origin (Google Fonts, CDN, analytics, or remote script) to compromise independently, so Subresource Integrity is unnecessary for the current asset set. Users who require high assurance should audit the source, build locally with the pinned toolchain, and serve from a trusted origin they control.
 
 ---
 

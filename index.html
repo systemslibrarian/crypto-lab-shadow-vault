@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self'; connect-src 'self'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'" />
     <script>
       (function () {
         const saved = localStorage.getItem('theme');
@@ -13,16 +13,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Deniable encryption — two messages, one container, no trace." />
     <title>Shadow Vault — Deniable Encryption</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet" />
+    <!-- Fonts are self-hosted (bundled via @fontsource in src/main.ts) — no third-party requests. -->
   </head>
   <body class="bg-vault-bg text-vault-text font-sans min-h-screen antialiased leading-relaxed">
     <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:bg-vault-crimson focus:text-white focus:px-4 focus:py-2 focus:z-50 focus:rounded">Skip to content</a>
     <div id="app" class="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       <!-- Header -->
       <header class="mb-6 sm:mb-8 relative">
-        <button id="theme-toggle" class="w-[2.6rem] h-[2.6rem] rounded-full border border-vault-border bg-vault-surface text-vault-text hover:bg-vault-bg transition-colors duration-300 flex items-center justify-center" style="position: absolute; top: 0; right: 0" aria-label="Switch to light mode">🌙</button>
+        <button id="theme-toggle" type="button" class="w-[2.6rem] h-[2.6rem] rounded-full border border-vault-border bg-vault-surface text-vault-text hover:bg-vault-bg transition-colors duration-300 flex items-center justify-center" style="position: absolute; top: 0; right: 0" aria-label="Switch to light mode">🌙</button>
         <div class="flex items-center justify-between gap-3 pr-14">
           <div>
             <h1 class="font-display text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2">
@@ -30,7 +28,7 @@
             </h1>
             <p class="text-vault-text-dim text-sm mt-1">Two messages. One container. No trace.</p>
           </div>
-          <button id="btn-how-it-works" class="text-vault-text-dim hover:text-vault-text text-sm border border-vault-border px-3 py-1.5 rounded transition-colors duration-300 min-h-[44px] min-w-[44px]" aria-label="How it works">
+          <button id="btn-how-it-works" type="button" class="text-vault-text-dim hover:text-vault-text text-sm border border-vault-border px-3 py-1.5 rounded transition-colors duration-300 min-h-[44px] min-w-[44px]" aria-label="How it works">
             HOW IT WORKS
           </button>
         </div>
@@ -38,10 +36,10 @@
 
       <!-- Tabs -->
       <nav class="flex gap-0 mb-6 border-b border-vault-border" role="tablist" aria-label="Vault operations">
-        <button id="tab-encrypt" class="tab-btn active px-6 py-3 text-sm font-semibold border-b-2 border-vault-crimson text-vault-text transition-colors duration-300 min-h-[44px]" role="tab" aria-selected="true" aria-controls="panel-encrypt">
+        <button id="tab-encrypt" type="button" class="tab-btn active px-6 py-3 text-sm font-semibold border-b-2 border-vault-crimson text-vault-text transition-colors duration-300 min-h-[44px]" role="tab" aria-selected="true" aria-controls="panel-encrypt">
           ENCRYPT
         </button>
-        <button id="tab-decrypt" class="tab-btn px-6 py-3 text-sm font-semibold border-b-2 border-transparent text-vault-text-dim hover:text-vault-text transition-colors duration-300 min-h-[44px]" role="tab" aria-selected="false" aria-controls="panel-decrypt">
+        <button id="tab-decrypt" type="button" class="tab-btn px-6 py-3 text-sm font-semibold border-b-2 border-transparent text-vault-text-dim hover:text-vault-text transition-colors duration-300 min-h-[44px]" role="tab" aria-selected="false" aria-controls="panel-decrypt">
           DECRYPT
         </button>
       </nav>
@@ -57,11 +55,11 @@
               <label for="real-passphrase" class="block text-xs text-vault-text-dim mb-1">Passphrase</label>
               <div class="relative mb-1">
                 <input id="real-passphrase" type="password" autocomplete="new-password" class="w-full bg-vault-bg border border-vault-border rounded px-3 py-2.5 text-vault-text text-sm focus:border-vault-crimson focus:ring-1 focus:ring-vault-crimson outline-none transition-colors min-h-[44px]" placeholder="Strong passphrase for real message" />
-                <button class="toggle-password absolute right-2 top-1/2 -translate-y-1/2 text-vault-text-dim hover:text-vault-text p-1 min-w-[44px] min-h-[44px] flex items-center justify-center" aria-label="Toggle password visibility" data-target="real-passphrase">👁</button>
+                <button type="button" class="toggle-password absolute right-2 top-1/2 -translate-y-1/2 text-vault-text-dim hover:text-vault-text p-1 min-w-[44px] min-h-[44px] flex items-center justify-center" aria-label="Show passphrase" aria-pressed="false" data-target="real-passphrase">👁</button>
               </div>
               <div class="mb-3">
                 <div id="real-strength-bar" class="h-1 rounded bg-vault-bg overflow-hidden"><div class="h-full transition-all duration-300" style="width:0%"></div></div>
-                <p id="real-strength-label" class="text-xs mt-1 text-vault-text-muted">&nbsp;</p>
+                <p id="real-strength-label" class="text-xs mt-1 text-vault-text-muted" role="status" aria-live="polite">&nbsp;</p>
               </div>
               <label for="real-message" class="block text-xs text-vault-text-dim mb-1">Message</label>
               <textarea id="real-message" rows="4" class="w-full bg-vault-bg border border-vault-border rounded px-3 py-2.5 text-vault-text text-sm focus:border-vault-crimson focus:ring-1 focus:ring-vault-crimson outline-none transition-colors resize-none" placeholder="The message you want to protect"></textarea>
@@ -74,11 +72,11 @@
               <label for="decoy-passphrase" class="block text-xs text-vault-text-dim mb-1">Passphrase</label>
               <div class="relative mb-1">
                 <input id="decoy-passphrase" type="password" autocomplete="new-password" class="w-full bg-vault-bg border border-vault-border rounded px-3 py-2.5 text-vault-text text-sm focus:border-vault-amber focus:ring-1 focus:ring-vault-amber outline-none transition-colors min-h-[44px]" placeholder="Decoy passphrase to reveal under coercion" />
-                <button class="toggle-password absolute right-2 top-1/2 -translate-y-1/2 text-vault-text-dim hover:text-vault-text p-1 min-w-[44px] min-h-[44px] flex items-center justify-center" aria-label="Toggle password visibility" data-target="decoy-passphrase">👁</button>
+                <button type="button" class="toggle-password absolute right-2 top-1/2 -translate-y-1/2 text-vault-text-dim hover:text-vault-text p-1 min-w-[44px] min-h-[44px] flex items-center justify-center" aria-label="Show passphrase" aria-pressed="false" data-target="decoy-passphrase">👁</button>
               </div>
               <div class="mb-3">
                 <div id="decoy-strength-bar" class="h-1 rounded bg-vault-bg overflow-hidden"><div class="h-full transition-all duration-300" style="width:0%"></div></div>
-                <p id="decoy-strength-label" class="text-xs mt-1 text-vault-text-muted">&nbsp;</p>
+                <p id="decoy-strength-label" class="text-xs mt-1 text-vault-text-muted" role="status" aria-live="polite">&nbsp;</p>
               </div>
               <label for="decoy-message" class="block text-xs text-vault-text-dim mb-1">Message</label>
               <textarea id="decoy-message" rows="4" class="w-full bg-vault-bg border border-vault-border rounded px-3 py-2.5 text-vault-text text-sm focus:border-vault-amber focus:ring-1 focus:ring-vault-amber outline-none transition-colors resize-none" placeholder="Plausible decoy message"></textarea>
@@ -111,7 +109,7 @@
 
           <!-- Argon2id Parameters -->
           <div class="bg-vault-surface border border-vault-border rounded-lg mb-6">
-            <button id="btn-toggle-params" class="w-full flex items-center justify-between p-5 text-left min-h-[44px]" aria-expanded="false" aria-controls="params-panel">
+            <button id="btn-toggle-params" type="button" class="w-full flex items-center justify-between p-5 text-left min-h-[44px]" aria-expanded="false" aria-controls="params-panel">
               <div>
                 <h3 class="text-xs text-vault-text-dim mb-1">ARGON2ID PARAMETERS</h3>
                 <p class="text-sm font-mono">
@@ -143,7 +141,7 @@
               </div>
               <div class="flex items-center justify-between mt-4">
                 <p class="text-xs text-vault-text-dim" aria-live="polite">Estimated derivation: <span id="param-estimate" class="font-mono">~2s</span> per passphrase</p>
-                <button id="btn-restore-defaults" class="text-xs text-vault-text-dim hover:text-vault-text border border-vault-border px-3 py-1.5 rounded transition-colors min-h-[44px]">
+                <button id="btn-restore-defaults" type="button" class="text-xs text-vault-text-dim hover:text-vault-text border border-vault-border px-3 py-1.5 rounded transition-colors min-h-[44px]">
                   Restore Defaults
                 </button>
               </div>
@@ -152,7 +150,7 @@
 
           <!-- Encrypt Button -->
           <div class="text-center mb-6">
-            <button id="btn-encrypt" class="bg-vault-crimson hover:bg-vault-crimson-light text-white font-semibold px-8 py-3 rounded transition-colors duration-300 min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+            <button id="btn-encrypt" type="button" class="bg-vault-crimson hover:bg-vault-crimson-light text-white font-semibold px-8 py-3 rounded transition-colors duration-300 min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed" disabled>
               CREATE VAULT
             </button>
             <p id="encrypt-error" class="text-vault-danger text-sm mt-2 hidden" role="alert" aria-live="assertive"></p>
@@ -172,7 +170,7 @@
 
           <!-- Download -->
           <div id="download-section" class="hidden text-center mb-6">
-            <button id="btn-download" class="border border-vault-border hover:border-vault-text text-vault-text px-6 py-3 rounded transition-colors duration-300 min-h-[44px]">
+            <button id="btn-download" type="button" class="border border-vault-border hover:border-vault-text text-vault-text px-6 py-3 rounded transition-colors duration-300 min-h-[44px]">
               DOWNLOAD VAULT FILE
             </button>
             <p id="download-filename" class="text-xs text-vault-text-muted mt-2"></p>
@@ -183,9 +181,9 @@
         <section id="panel-decrypt" role="tabpanel" aria-labelledby="tab-decrypt" class="hidden">
           <div class="bg-vault-surface border border-vault-border rounded-lg p-5 mb-6">
             <label for="decrypt-file" class="block text-xs text-vault-text-dim mb-2">VAULT FILE</label>
-            <div id="drop-zone" class="border-2 border-dashed border-vault-border rounded-lg p-8 text-center cursor-pointer hover:border-vault-text-dim transition-colors duration-300 min-h-[100px] flex items-center justify-center">
-              <p class="text-vault-text-dim text-sm">Drop file or click to upload</p>
-              <input id="decrypt-file" type="file" class="hidden" aria-label="Upload vault file" />
+            <div id="drop-zone" role="button" tabindex="0" aria-label="Upload vault file — activate to browse for a file, or drop a file here" class="border-2 border-dashed border-vault-border rounded-lg p-8 text-center cursor-pointer hover:border-vault-text-dim transition-colors duration-300 min-h-[100px] flex items-center justify-center">
+              <p class="text-vault-text-dim text-sm">Drop file, or click / press Enter to upload</p>
+              <input id="decrypt-file" type="file" class="hidden" aria-label="Upload vault file" tabindex="-1" />
             </div>
             <p id="file-info" class="text-xs text-vault-text-muted mt-2 hidden"></p>
           </div>
@@ -194,12 +192,12 @@
             <label for="decrypt-passphrase" class="block text-xs text-vault-text-dim mb-2">PASSPHRASE</label>
             <div class="relative">
               <input id="decrypt-passphrase" type="password" autocomplete="current-password" class="w-full bg-vault-bg border border-vault-border rounded px-3 py-2.5 text-vault-text text-sm focus:border-vault-crimson focus:ring-1 focus:ring-vault-crimson outline-none transition-colors min-h-[44px]" placeholder="Enter passphrase to decrypt" />
-              <button class="toggle-password absolute right-2 top-1/2 -translate-y-1/2 text-vault-text-dim hover:text-vault-text p-1 min-w-[44px] min-h-[44px] flex items-center justify-center" aria-label="Toggle password visibility" data-target="decrypt-passphrase">👁</button>
+              <button type="button" class="toggle-password absolute right-2 top-1/2 -translate-y-1/2 text-vault-text-dim hover:text-vault-text p-1 min-w-[44px] min-h-[44px] flex items-center justify-center" aria-label="Show passphrase" aria-pressed="false" data-target="decrypt-passphrase">👁</button>
             </div>
           </div>
 
           <div class="text-center mb-6">
-            <button id="btn-decrypt" class="bg-vault-crimson hover:bg-vault-crimson-light text-white font-semibold px-8 py-3 rounded transition-colors duration-300 min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+            <button id="btn-decrypt" type="button" class="bg-vault-crimson hover:bg-vault-crimson-light text-white font-semibold px-8 py-3 rounded transition-colors duration-300 min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed" disabled>
               OPEN VAULT
             </button>
             <p id="decrypt-error" class="text-vault-danger text-sm mt-2 hidden" role="alert" aria-live="assertive"></p>
@@ -215,8 +213,8 @@
             <div class="flex items-center justify-between mb-3">
               <h3 class="text-xs text-vault-text-dim">MESSAGE</h3>
               <div class="flex gap-2">
-                <button id="btn-copy" class="text-xs text-vault-text-dim hover:text-vault-text border border-vault-border px-3 py-1.5 rounded transition-colors min-h-[44px]">COPY</button>
-                <button id="btn-clear-message" class="text-xs text-vault-text-dim hover:text-vault-text border border-vault-border px-3 py-1.5 rounded transition-colors min-h-[44px]">CLEAR</button>
+                <button id="btn-copy" type="button" class="text-xs text-vault-text-dim hover:text-vault-text border border-vault-border px-3 py-1.5 rounded transition-colors min-h-[44px]">COPY</button>
+                <button id="btn-clear-message" type="button" class="text-xs text-vault-text-dim hover:text-vault-text border border-vault-border px-3 py-1.5 rounded transition-colors min-h-[44px]">CLEAR</button>
               </div>
             </div>
             <div id="decrypted-message" class="bg-vault-bg border border-vault-border rounded p-4 text-sm whitespace-pre-wrap break-words"></div>
@@ -249,7 +247,7 @@
     <dialog id="modal-how" class="fixed inset-0 z-50 max-w-2xl w-[calc(100%-2rem)] mx-auto my-4 sm:my-8 bg-vault-surface border border-vault-border rounded-lg p-0 text-vault-text max-h-[90vh] overflow-y-auto" aria-labelledby="modal-title">
       <div class="sticky top-0 bg-vault-surface border-b border-vault-border p-5 flex items-center justify-between z-10">
         <h2 id="modal-title" class="font-display text-xl font-semibold">How Shadow Vault Works</h2>
-        <button id="btn-close-modal" class="text-vault-text-dim hover:text-vault-text min-w-[44px] min-h-[44px] flex items-center justify-center text-2xl" aria-label="Close">&times;</button>
+        <button id="btn-close-modal" type="button" class="text-vault-text-dim hover:text-vault-text min-w-[44px] min-h-[44px] flex items-center justify-center text-2xl" aria-label="Close">&times;</button>
       </div>
       <div class="p-5 space-y-6 text-sm leading-relaxed" style="line-height:1.7">
         <section>
@@ -269,7 +267,7 @@
         <section>
           <h3 class="font-display text-lg font-semibold mb-2 text-vault-crimson">Container Format</h3>
           <p>The container is a fixed-size block of bytes. It begins as entirely random (CSPRNG). Two encrypted message slots are written at derived offsets, overwriting random bytes. The result: no headers, no magic bytes, no length fields, no structure detectable by forensic analysis. The entire container looks like random data.</p>
-          <p class="mt-2 font-mono text-xs text-vault-text-dim">Passphrase → Argon2id(64B) → key[0..31] + nonce[32..43] + offset[44..47] → ChaCha20-Poly1305 AEAD</p>
+          <p class="mt-2 font-mono text-xs text-vault-text-dim break-words">Passphrase → Argon2id(64B) → key[0..31] + nonce[32..43] + offset[44..63] → ChaCha20-Poly1305 AEAD</p>
         </section>
         <section>
           <h3 class="font-display text-lg font-semibold mb-2 text-vault-crimson">What This Cannot Protect Against</h3>

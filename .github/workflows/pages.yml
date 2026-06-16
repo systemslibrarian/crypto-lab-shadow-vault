@@ -19,13 +19,36 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # Build the WASM crypto core from source so the deployed artifact is
+      # provably the one the audited Rust produces — not a stale committed blob.
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crate
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - run: npm install
-      - run: npx tsc --noEmit
-      - run: npm test --if-present
-      - run: npm run build
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      # Gate deploy on the crypto test suite — never ship failing crypto.
+      - name: Run Rust crypto tests (release)
+        run: cargo test --release
+        working-directory: crate
+
+      - name: Build WASM from source
+        run: npm run wasm
+      - name: TypeScript type check (strict)
+        run: npx tsc --noEmit
+      - name: Build app
+        run: npm run build
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

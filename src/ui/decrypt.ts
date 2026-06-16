@@ -74,6 +74,13 @@ export function initDecrypt(): void {
 
   // Click to upload
   dropZone.addEventListener('click', () => fileInput.click());
+  // Keyboard operability (WCAG 2.1.1) — drop-zone is role="button" tabindex="0"
+  dropZone.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      fileInput.click();
+    }
+  });
   fileInput.addEventListener('change', () => {
     if (fileInput.files && fileInput.files[0]) {
       handleFile(fileInput.files[0]);

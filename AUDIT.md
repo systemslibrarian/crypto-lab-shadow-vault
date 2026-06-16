@@ -124,16 +124,17 @@ No critical findings.
 **Description:** Passphrases are passed as raw UTF-8 bytes. `é` (U+00E9, NFC, 2 bytes) and `é` (U+0065 U+0301, NFD, 3 bytes) produce different Argon2id outputs, making containers potentially unopenable across platforms.  
 **Severity justification:** INFO. Cross-platform portability issue, not a security vulnerability. Documented in THREAT_MODEL.md §2.7 and SECURITY.md §8.
 
-#### I-4: Google Fonts external dependency
+#### I-4: Google Fonts external dependency — RESOLVED
 
-**File:** [index.html](index.html) — CSP and stylesheet link  
-**Description:** CSP allows `fonts.googleapis.com` (CSS) and `fonts.gstatic.com` (fonts). Google can log IP addresses of users accessing the tool. The CSS is loaded without Subresource Integrity.  
-**Severity justification:** INFO. Privacy/tracking concern. Fonts do not carry executable code. The CSP does not include `unsafe-eval` for styles, limiting CSS-based attacks.
+**File:** [index.html](index.html), [src/main.ts](src/main.ts)  
+**Description:** Previously the CSP allowed `fonts.googleapis.com` (CSS) and `fonts.gstatic.com` (fonts), letting Google log IP addresses of users accessing the tool.  
+**Resolution:** Fonts are now bundled from `@fontsource` and served same-origin. The external font origins were removed from the CSP (`style-src` and `font-src` are now `'self'` only), and the `<link>`/`preconnect` tags were deleted. The app makes no third-party requests and works fully offline.  
+**Severity justification:** INFO (privacy/tracking). Now eliminated.
 
 #### I-5: `unsafe-inline` in `style-src` CSP directive
 
 **File:** [index.html](index.html) — CSP meta tag  
-**Description:** `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com` allows inline styles. This is required by Vite/Tailwind's build pipeline and runtime style injection.  
+**Description:** `style-src 'self' 'unsafe-inline'` allows inline styles. This is required by Vite/Tailwind's build pipeline and runtime style injection.  
 **Severity justification:** INFO. `unsafe-inline` for styles is standard for Tailwind-based applications. It does not affect `script-src` which is correctly restricted to `'self' 'wasm-unsafe-eval'`.
 
 ---

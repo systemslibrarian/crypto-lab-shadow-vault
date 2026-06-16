@@ -63,10 +63,11 @@ function updateStrengthUI(passphrase: string, barId: string, labelId: string): v
     return;
   }
 
+  // The colored bar carries the strength cue; the label stays in the themed,
+  // WCAG-AA-contrast text color and names the level in words (never color alone).
   inner.style.width = `${result.percent}%`;
   inner.style.backgroundColor = result.color;
   label.textContent = `~${result.bits} bits — ${result.label}`;
-  label.style.color = result.color;
 }
 
 let lastContainer: Uint8Array | null = null;

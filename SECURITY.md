@@ -11,6 +11,11 @@ This checklist is for auditors, reviewers, and contributors evaluating the secur
   - File: [crate/src/lib.rs](crate/src/lib.rs) `derive_key_material()`
   - User-configurable via UI sliders (minimum 16 MB)
 
+- [ ] **Minimum Argon2id parameters enforced at the WASM boundary**
+  - `MIN_MEMORY_KIB = 16384` (16 MB), `MIN_ITERATIONS = 2`, `MIN_PARALLELISM = 1`
+  - Enforced in `validate_argon2_params()` for both `create_container()` and `open_container()`, so a crafted Worker message cannot create a trivially brute-forceable container
+  - File: [crate/src/lib.rs](crate/src/lib.rs) `validate_argon2_params()`
+
 - [ ] **ChaCha20-Poly1305 uses correct AAD**
   - AAD is the literal bytes `shadow-vault:v1` (15 bytes)
   - File: [crate/src/lib.rs](crate/src/lib.rs) `const AAD`
@@ -108,8 +113,14 @@ This checklist is for auditors, reviewers, and contributors evaluating the secur
 
 - [ ] **Content Security Policy restricts all sources**
   - `default-src 'none'`; explicit allowlist for `script-src`, `worker-src`, `style-src`, `font-src`, `img-src`, `connect-src`
+  - `style-src` and `font-src` are `'self'` only — no external origins (fonts are self-hosted)
   - `form-action 'none'`; `frame-ancestors 'none'`
   - File: [index.html](index.html) `<meta http-equiv="Content-Security-Policy">`
+
+- [ ] **No third-party runtime requests**
+  - Fonts are bundled from `@fontsource` and served same-origin (no Google Fonts)
+  - No analytics, no CDNs, no remote scripts or styles — the app is fully self-contained and works offline
+  - Files: [src/main.ts](src/main.ts) (`@fontsource` imports), [index.html](index.html)
 
 - [ ] **Worker loads only self-hosted WASM**
   - File: [public/vault.worker.js](public/vault.worker.js) — imports from relative `./shadow_vault_crypto.js`
@@ -132,9 +143,10 @@ This checklist is for auditors, reviewers, and contributors evaluating the secur
 
 ## 6. CI / Build Integrity
 
-- [ ] **Rust tests run in CI before WASM build**
-  - 65+ tests including pinned vectors, corruption, edge cases
-  - File: [.github/workflows/deploy.yml](.github/workflows/deploy.yml) `cargo test --release`
+- [ ] **Rust tests gate both CI and deploy**
+  - 75+ tests including pinned vectors, corruption, edge cases, and property-based (proptest) tests
+  - Full security suite (fmt, clippy `-D warnings`, tests, `cargo audit`, `cargo deny`, WASM build): [.github/workflows/security-tests.yml](.github/workflows/security-tests.yml) `cargo test --release`
+  - Deploy is blocked unless the Rust crypto tests pass: [.github/workflows/pages.yml](.github/workflows/pages.yml)
 
 - [ ] **TypeScript strict mode enforced**
   - `npx tsc --noEmit` in CI
@@ -177,7 +189,5 @@ These are inherent design constraints that cannot be fixed without breaking chan
 - **Unicode normalization not performed:** Passphrases are passed as raw UTF-8 bytes. Different Unicode representations of the same visual character (NFC vs NFD) produce different Argon2id output, making containers potentially unopenable across platforms. **Mitigation:** Use ASCII-only passphrases. See THREAT_MODEL.md §2.7.
 
 - **JavaScript string immutability:** Passphrases and messages enter as JavaScript strings which cannot be securely zeroed. The GC manages their lifetime. Defense-in-depth (input clearing, Worker cleanup) reduces exposure but cannot guarantee erasure. See THREAT_MODEL.md §2.2.
-
-- **Google Fonts external dependency:** The CSP allows `fonts.googleapis.com` and `fonts.gstatic.com`. This creates a privacy/tracking vector. Fonts do not carry executable code but the CSS request reveals the user's IP address to Google. A fully offline deployment would need to self-host the fonts.
 
 - **Clipboard not fully controlled:** The clipboard clear (30s after copy) uses `navigator.clipboard.writeText('')`. The OS clipboard may retain copies, and clipboard managers may archive the content before the clear fires.
