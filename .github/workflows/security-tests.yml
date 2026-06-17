@@ -40,9 +40,11 @@ jobs:
         run: cargo test --release -- --nocapture
         working-directory: crate
 
-      # Security audit of dependencies
+      # Security audit of dependencies.
+      # Pinned for compatibility with the rustc version in rust-toolchain.toml
+      # (1.87.0); newer cargo-audit (0.22.2+) requires rustc 1.88+.
       - name: Install cargo-audit
-        run: cargo install cargo-audit --locked
+        run: cargo install cargo-audit@0.22.1 --locked
       - name: Cargo audit
         run: cargo audit
         working-directory: crate
