@@ -192,12 +192,25 @@ export function initEncrypt(): void {
 
     const workingStep = addStep('Deriving keys & encrypting (Rust/WASM)...');
 
+    const realMsgVal = realMsg.value;
+    const decoyMsgVal = decoyMsg.value;
+    const realPassVal = realPass.value;
+    const decoyPassVal = decoyPass.value;
+
+    // Clear sensitive inputs from UI immediately (reduces DOM exposure time)
+    realPass.value = '';
+    decoyPass.value = '';
+    realMsg.value = '';
+    decoyMsg.value = '';
+    realCount.textContent = '0';
+    decoyCount.textContent = '0';
+
     try {
       const result = await createContainer(
-        realMsg.value,
-        decoyMsg.value,
-        realPass.value,
-        decoyPass.value,
+        realMsgVal,
+        decoyMsgVal,
+        realPassVal,
+        decoyPassVal,
         config,
       );
 
@@ -216,14 +229,6 @@ export function initEncrypt(): void {
       // Show download section
       downloadSection.classList.remove('hidden');
       downloadFilename.textContent = lastFilename;
-
-      // Clear sensitive inputs for security
-      realPass.value = '';
-      decoyPass.value = '';
-      realMsg.value = '';
-      decoyMsg.value = '';
-      realCount.textContent = '0';
-      decoyCount.textContent = '0';
     } catch (err: unknown) {
       workingStep.className = 'text-vault-danger';
       workingStep.textContent = `✗ ${err instanceof Error ? err.message : 'Unknown error'}`;

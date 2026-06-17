@@ -10,7 +10,7 @@ export default defineConfig({
   timeout: 120_000, // Argon2id derivation can be slow
 
   use: {
-    baseURL: 'http://localhost:4173',
+    baseURL: 'http://localhost:4173/crypto-lab-shadow-vault/',
     trace: 'on-first-retry',
   },
 

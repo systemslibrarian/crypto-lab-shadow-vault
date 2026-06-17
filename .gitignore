@@ -17,6 +17,10 @@ out
 /crate/target/
 /pkg/
 
+# Playwright test output
+/test-results/
+/playwright-report/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

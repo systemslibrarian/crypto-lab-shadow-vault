@@ -134,12 +134,16 @@ export function initDecrypt(): void {
       argon2Params: getParams(),
     };
 
+    const passVal = passInput.value;
+    // Clear passphrase from memory early
+    passInput.value = '';
+
     const workingStep = addStep('Deriving key & searching slots (Rust/WASM)...');
 
     try {
       const result = await openContainer(
         loadedContainer,
-        passInput.value,
+        passVal,
         config,
       );
 
@@ -162,9 +166,6 @@ export function initDecrypt(): void {
         fail.className = 'text-vault-danger';
         fail.textContent = '✗ No message found for this passphrase.';
       }
-
-      // Clear passphrase from memory
-      passInput.value = '';
     } catch (err: unknown) {
       // SECURITY: All errors (WASM crash, Worker timeout, malformed input)
       // MUST show the same generic message as wrong-passphrase.

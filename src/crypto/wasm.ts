@@ -158,7 +158,7 @@ export async function openContainer(
  * Pure arithmetic — no WASM needed.
  */
 export function getMaxMessageLength(containerSize: number): number {
-  return Math.floor(containerSize / 3) - 4;
+  return Math.floor(containerSize / 3) - 20; // 16 for poly1305 tag, 4 for length prefix
 }
 
 // ─── Container file I/O (stays in JS — no crypto) ───────────────────────

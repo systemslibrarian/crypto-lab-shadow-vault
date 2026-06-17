@@ -1,6 +1,8 @@
 /* @ts-self-types="./shadow_vault_crypto.d.ts" */
 
 /**
+ * # Errors
+ * Returns an error if parameters are invalid, messages are too long, or encryption fails.
  * @param {string} real_message
  * @param {string} decoy_message
  * @param {string} real_passphrase
@@ -45,6 +47,8 @@ export function get_max_message_length(container_size) {
 }
 
 /**
+ * # Errors
+ * Returns an error if parameters are invalid or the container data is malformed.
  * @param {Uint8Array} container_data
  * @param {string} passphrase
  * @param {number} container_size
@@ -74,6 +78,11 @@ export function open_container(container_data, passphrase, container_size, memor
 }
 
 /**
+ * # Errors
+ * Returns an error on self-test failure.
+ *
+ * # Panics
+ * Panics if RFC 8439 test vector key or nonce slices are invalid (programmer error).
  * @returns {any}
  */
 export function self_test() {
