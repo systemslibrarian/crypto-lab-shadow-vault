@@ -39,8 +39,8 @@ The demo lets you encrypt and decrypt containers end-to-end in the browser. In e
 
 | Project | Description |
 |---------|------------|
-| [phantom-vault](https://systemslibrarian.github.io/phantom-vault/) | Argon2id + HMAC-DRBG stateless password generation |
-| [corrupted-oracle](https://systemslibrarian.github.io/corrupted-oracle/) | ChaCha20-DRBG + Dual_EC backdoor demonstration |
+| [phantom-vault](https://systemslibrarian.github.io/crypto-lab-phantom-vault/) | Argon2id + HMAC-DRBG stateless password generation |
+| [corrupted-oracle](https://systemslibrarian.github.io/crypto-lab-corrupted-oracle/) | ChaCha20-DRBG + Dual_EC backdoor demonstration |
 
 ## Documentation
 
