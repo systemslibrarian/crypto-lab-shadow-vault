@@ -49,6 +49,15 @@ jobs:
       - name: Build app
         run: npm run build
 
+      # Gate deploy on the WCAG A/AA accessibility suite (both themes), run
+      # against the production build — never ship an inaccessible page.
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+      - name: Accessibility gate (axe, both themes)
+        run: npm run test:a11y
+        env:
+          CI: true
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

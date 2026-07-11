@@ -7,6 +7,7 @@
     "wasm": "cd crate && wasm-pack build --target web --out-dir ../pkg --release && node ../scripts/copy-wasm.mjs",
     "test": "cd crate && cargo test --release",
     "test:browser": "npx playwright test",
+    "test:a11y": "playwright test --config=playwright.a11y.config.ts",
     "test:all": "npm run test && npm run test:browser",
     "dev": "vite",
     "build": "tsc && vite build",
@@ -15,7 +16,8 @@
     "deploy": "gh-pages -d out"
   },
   "devDependencies": {
-    "@playwright/test": "^1.61.0",
+    "@axe-core/playwright": "^4.12.1",
+    "@playwright/test": "^1.61.1",
     "@tailwindcss/forms": "^0.5.11",
     "autoprefixer": "^10.4.27",
     "gh-pages": "^6.3.0",
