@@ -136,20 +136,25 @@
     <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:bg-vault-crimson focus:text-white focus:px-4 focus:py-2 focus:z-50 focus:rounded">Skip to content</a>
     <div id="app" class="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       <!-- Header -->
-      <header class="mb-6 sm:mb-8 relative">
+      <div class="relative">
         <button id="theme-toggle" type="button" class="w-[2.6rem] h-[2.6rem] rounded-full border border-vault-border bg-vault-surface text-vault-text hover:bg-vault-bg transition-colors duration-300 flex items-center justify-center" style="position: absolute; top: 0; right: 0" aria-label="Switch to light mode">🌙</button>
-        <div class="flex items-center justify-between gap-3 pr-14">
-          <div>
-            <h1 class="font-display text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2">
-              <span class="text-vault-crimson">◈</span> SHADOW VAULT
-            </h1>
-            <p class="text-vault-text-dim text-sm mt-1">Two messages. One container. No trace.</p>
+        <header class="cl-hero pr-14">
+          <div class="cl-hero-main">
+            <h1 class="cl-hero-title"><span class="text-vault-crimson">◈</span> Shadow Vault</h1>
+            <p class="cl-hero-sub">Deniable Encryption · Argon2id + ChaCha20-Poly1305</p>
+            <p class="cl-hero-desc">Hide a real message and a plausible decoy at passphrase-derived offsets inside one fixed-size container, then decrypt either slot by supplying its passphrase.</p>
           </div>
-          <button id="btn-how-it-works" type="button" class="text-vault-text-dim hover:text-vault-text text-sm border border-vault-border px-3 py-1.5 rounded transition-colors duration-300 min-h-[44px] min-w-[44px]" aria-label="How it works">
+          <aside class="cl-hero-why" aria-label="Why it matters">
+            <span class="cl-hero-why-label">WHY IT MATTERS</span>
+            <p class="cl-hero-why-text">Ordinary encryption proves a secret exists, so an adversary keeps pressing until you surrender the key. Deniability lets you yield the decoy under coercion while the real message stays statistically invisible in noise.</p>
+          </aside>
+        </header>
+        <div class="text-center mb-6 sm:mb-8">
+          <button id="btn-how-it-works" type="button" class="text-vault-text-dim hover:text-vault-text text-sm border border-vault-border px-3 py-1.5 rounded transition-colors duration-300 min-h-[44px]" aria-label="How it works">
             HOW IT WORKS
           </button>
         </div>
-      </header>
+      </div>
 
       <!-- Tabs -->
       <nav class="flex gap-0 mb-6 border-b border-vault-border" role="tablist" aria-label="Vault operations">
