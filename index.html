@@ -182,6 +182,7 @@
               <div class="mb-3">
                 <div id="real-strength-bar" class="h-1 rounded bg-vault-bg overflow-hidden"><div class="h-full transition-all duration-300" style="width:0%"></div></div>
                 <p id="real-strength-label" class="text-xs mt-1 text-vault-text-muted" role="status" aria-live="polite">&nbsp;</p>
+                <p class="text-xs mt-1 text-vault-text-muted leading-relaxed">Bits of entropy estimate the number of guesses to break this passphrase: each bit doubles the work, so 80 bits is a million times harder than 60. Deniability holds only while <em>both</em> passphrases are too costly to guess.</p>
               </div>
               <label for="real-message" class="block text-xs text-vault-text-dim mb-1">Message</label>
               <textarea id="real-message" rows="4" class="w-full bg-vault-bg border border-vault-border rounded px-3 py-2.5 text-vault-text text-sm focus:border-vault-crimson focus:ring-1 focus:ring-vault-crimson outline-none transition-colors resize-none" placeholder="The message you want to protect"></textarea>
@@ -199,6 +200,7 @@
               <div class="mb-3">
                 <div id="decoy-strength-bar" class="h-1 rounded bg-vault-bg overflow-hidden"><div class="h-full transition-all duration-300" style="width:0%"></div></div>
                 <p id="decoy-strength-label" class="text-xs mt-1 text-vault-text-muted" role="status" aria-live="polite">&nbsp;</p>
+                <p class="text-xs mt-1 text-vault-text-muted leading-relaxed">The decoy must be just as hard to guess — if an attacker can brute-force this passphrase, they can also test whether it hides the whole vault.</p>
               </div>
               <label for="decoy-message" class="block text-xs text-vault-text-dim mb-1">Message</label>
               <textarea id="decoy-message" rows="4" class="w-full bg-vault-bg border border-vault-border rounded px-3 py-2.5 text-vault-text text-sm focus:border-vault-amber focus:ring-1 focus:ring-vault-amber outline-none transition-colors resize-none" placeholder="Plausible decoy message"></textarea>
@@ -261,12 +263,13 @@
                   <p class="text-sm font-mono mt-1"><span id="param-parallelism-val">4</span></p>
                 </div>
               </div>
-              <div class="flex items-center justify-between mt-4">
-                <p class="text-xs text-vault-text-dim" aria-live="polite">Estimated derivation: <span id="param-estimate" class="font-mono">~2s</span> per passphrase</p>
+              <div class="flex items-center justify-between mt-4 gap-3 flex-wrap">
+                <p class="text-xs text-vault-text-dim" aria-live="polite">Measured derivation: <span id="param-estimate" class="font-mono">measuring…</span> per passphrase</p>
                 <button id="btn-restore-defaults" type="button" class="text-xs text-vault-text-dim hover:text-vault-text border border-vault-border px-3 py-1.5 rounded transition-colors min-h-[44px]">
                   Restore Defaults
                 </button>
               </div>
+              <p id="param-attacker-cost" class="text-xs text-vault-text-dim mt-3 leading-relaxed" aria-live="polite"></p>
             </div>
           </div>
 
@@ -285,9 +288,27 @@
 
           <!-- Container Visualizer -->
           <div id="container-visualizer" class="hidden mb-6 bg-vault-surface border border-vault-border rounded-lg p-5">
-            <h3 class="text-xs text-vault-text-dim mb-3">CONTAINER MAP</h3>
-            <div id="container-map" class="flex flex-wrap gap-px mb-3" role="img" aria-label="Visual representation of container contents"></div>
-            <p id="container-stats" class="text-xs text-vault-text-dim"></p>
+            <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+              <h3 class="text-xs text-vault-text-dim">CONTAINER MAP</h3>
+              <div id="viz-view-toggle" class="hidden">
+                <button id="btn-attacker-view" type="button" aria-pressed="false" class="text-xs text-vault-text-dim hover:text-vault-text border border-vault-border px-3 py-1.5 rounded transition-colors min-h-[44px]">What an attacker sees</button>
+              </div>
+            </div>
+            <p class="text-xs text-vault-text-muted mb-3">Watch the container fill with random noise, the two slots write in at their passphrase-derived offsets, then <span class="text-vault-text">dissolve back into noise</span>. Toggle the view to compare what you (with the passphrases) see against what an adversary sees.</p>
+            <div id="container-map" class="flex flex-wrap gap-px mb-3" role="img" aria-label="Animated map of the container: random noise, then two message slots written at derived offsets, then dissolving back into uniform noise"></div>
+            <p id="container-stats" class="text-xs text-vault-text-dim" role="status" aria-live="polite"></p>
+          </div>
+
+          <!-- Coercion Scenario Demo -->
+          <div id="coercion-section" class="hidden mb-6 bg-vault-surface border border-vault-border rounded-lg p-5">
+            <h3 class="text-xs text-vault-text-dim mb-2">THE COERCION SCENARIO</h3>
+            <p class="text-xs text-vault-text-muted mb-3">Deniability is a <em>scenario</em>, not a byte layout. Play it out: an adversary forces the decoy passphrase out of you, decrypts, and gets a plausible message — with no way to know a second one exists.</p>
+            <div class="text-center">
+              <button id="btn-coercion-demo" type="button" class="border border-vault-crimson text-vault-crimson hover:bg-vault-crimson hover:text-white px-6 py-3 rounded transition-colors duration-300 min-h-[44px] font-semibold">
+                ▶ PLAY OUT THE COERCION SCENARIO
+              </button>
+            </div>
+            <div id="coercion-steps" class="hidden mt-4 space-y-4" aria-live="polite"></div>
           </div>
 
           <!-- Download -->
@@ -340,16 +361,17 @@
               </div>
             </div>
             <div id="decrypted-message" class="bg-vault-bg border border-vault-border rounded p-4 text-sm whitespace-pre-wrap break-words"></div>
-            <div class="flex items-center gap-4 mt-3 text-xs text-vault-text-muted">
+            <div class="flex items-center gap-4 mt-3 text-xs text-vault-text-muted flex-wrap">
               <span>Derivation: <span id="decrypt-time" class="font-mono"></span></span>
               <span class="flex items-center gap-2">
-                Slot offset: 
-                <span id="decrypt-offset-bar" class="inline-block w-24 h-2 bg-vault-bg rounded overflow-hidden">
+                Slot offset:
+                <span id="decrypt-offset-bar" class="inline-block w-24 h-2 bg-vault-bg rounded overflow-hidden" role="img" aria-label="Slot offset shown as a bar with no number — redacted on purpose">
                   <span class="block h-full bg-vault-crimson rounded" style="width:0%"></span>
                 </span>
                 <span class="text-vault-text-muted">(redacted)</span>
               </span>
             </div>
+            <p class="text-xs text-vault-text-muted mt-2 leading-relaxed">The exact offset is hidden on purpose — printing the number would leak that a message lives at that position, which is precisely what the format is designed to hide. The bar shows only roughly where in the container this slot fell.</p>
           </div>
         </section>
       </main>

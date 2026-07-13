@@ -161,6 +161,43 @@ export function getMaxMessageLength(containerSize: number): number {
   return Math.floor(containerSize / 3) - 20; // 16 for poly1305 tag, 4 for length prefix
 }
 
+/**
+ * Measure REAL Argon2id wall-clock cost for the given parameters.
+ *
+ * There is no faked formula here: this runs an actual `create_container`
+ * (which performs two real Argon2id derivations at cc=0, plus a trivial AEAD)
+ * on throwaway sample passphrases in the WASM worker, times it end-to-end, and
+ * returns the measured per-passphrase cost (total / 2). The messages are empty
+ * and the container is the smallest valid size so the measurement reflects the
+ * KDF, not the payload.
+ *
+ * Returns milliseconds per single passphrase derivation, measured on THIS
+ * device — the number an attacker pays per brute-force guess.
+ */
+export async function benchmarkArgon2(
+  memoryKib: number,
+  iterations: number,
+  parallelism: number,
+): Promise<number> {
+  const SAMPLE_SIZE = 4096;
+  const t0 = performance.now();
+  await callWorker('create_container', {
+    realMessage: '',
+    decoyMessage: '',
+    // Distinct throwaway passphrases — never leave this call.
+    realPassphrase: 'shadow-vault-benchmark-sample-real',
+    decoyPassphrase: 'shadow-vault-benchmark-sample-decoy',
+    containerSize: SAMPLE_SIZE,
+    memoryKib,
+    iterations,
+    parallelism,
+  });
+  const elapsed = performance.now() - t0;
+  // create_container runs two Argon2id derivations (real + decoy, cc=0) in the
+  // no-collision path; report per-passphrase cost.
+  return elapsed / 2;
+}
+
 // ─── Container file I/O (stays in JS — no crypto) ───────────────────────
 
 export function downloadContainer(container: Uint8Array, filename?: string): void {

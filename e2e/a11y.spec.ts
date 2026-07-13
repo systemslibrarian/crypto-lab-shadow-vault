@@ -41,6 +41,8 @@ async function revealAll(page: Page): Promise<void> {
     for (const id of [
       'encrypt-progress',
       'container-visualizer',
+      'viz-view-toggle',
+      'coercion-section',
       'download-section',
       'decrypt-progress',
       'decrypt-result',

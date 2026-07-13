@@ -1,10 +1,10 @@
 /**
  * Encrypt flow UI — handles encrypt panel interactions.
  */
-import { createContainer, downloadContainer, getMaxMessageLength } from '../crypto/wasm.js';
+import { createContainer, openContainer, downloadContainer, getMaxMessageLength } from '../crypto/wasm.js';
 import type { VaultConfig, ContainerSize } from '../types/vault.js';
 import { getParams } from './params.js';
-import { renderVisualizer, hideVisualizer } from './visualizer.js';
+import { renderVisualizer, hideVisualizer, toggleAttackerView } from './visualizer.js';
 
 /** Securely zero a Uint8Array */
 function zeroBytes(arr: Uint8Array): void {
@@ -73,6 +73,27 @@ function updateStrengthUI(passphrase: string, barId: string, labelId: string): v
 let lastContainer: Uint8Array | null = null;
 let lastFilename = '';
 
+// Material kept ONLY to script the coercion-scenario demo below. Both the
+// container copy and the passphrases are cleared as soon as the demo runs (or
+// the vault is downloaded / re-encrypted), so nothing lingers longer than the
+// existing container already does.
+interface DemoMaterial {
+  container: Uint8Array;
+  realPass: string;
+  decoyPass: string;
+  config: VaultConfig;
+}
+let demoMaterial: DemoMaterial | null = null;
+
+function clearDemoMaterial(): void {
+  if (demoMaterial) {
+    demoMaterial.container.fill(0);
+    demoMaterial.realPass = '';
+    demoMaterial.decoyPass = '';
+    demoMaterial = null;
+  }
+}
+
 export function initEncrypt(): void {
   const realPass = document.getElementById('real-passphrase') as HTMLInputElement;
   const decoyPass = document.getElementById('decoy-passphrase') as HTMLInputElement;
@@ -87,6 +108,14 @@ export function initEncrypt(): void {
   const downloadSection = document.getElementById('download-section')!;
   const btnDownload = document.getElementById('btn-download')!;
   const downloadFilename = document.getElementById('download-filename')!;
+  const btnAttackerView = document.getElementById('btn-attacker-view');
+  const coercionSection = document.getElementById('coercion-section')!;
+  const btnCoercion = document.getElementById('btn-coercion-demo') as HTMLButtonElement;
+  const coercionSteps = document.getElementById('coercion-steps')!;
+
+  if (btnAttackerView) {
+    btnAttackerView.addEventListener('click', () => toggleAttackerView());
+  }
 
   // Byte counters (UTF-8 — matches validation logic)
   function updateByteCount(textarea: HTMLTextAreaElement, counter: HTMLElement): void {
@@ -177,6 +206,9 @@ export function initEncrypt(): void {
     progressEl.classList.remove('hidden');
     stepsEl.innerHTML = '';
     downloadSection.classList.add('hidden');
+    coercionSection.classList.add('hidden');
+    coercionSteps.classList.add('hidden');
+    coercionSteps.innerHTML = '';
     hideVisualizer();
 
     // Zero previous container if it exists
@@ -184,6 +216,7 @@ export function initEncrypt(): void {
       zeroBytes(lastContainer);
       lastContainer = null;
     }
+    clearDemoMaterial();
 
     const config: VaultConfig = {
       containerSize: getContainerSize(),
@@ -223,8 +256,21 @@ export function initEncrypt(): void {
       lastContainer = result.container;
       lastFilename = `vault_${Date.now()}.bin`;
 
+      // Keep an independent copy + the passphrases so the coercion-scenario
+      // demo can re-decrypt this exact container through the real WASM path.
+      // Cleared on demo run, download, or re-encrypt.
+      demoMaterial = {
+        container: result.container.slice(),
+        realPass: realPassVal,
+        decoyPass: decoyPassVal,
+        config,
+      };
+
       // Show visualizer
       renderVisualizer(config.containerSize, result.realOffset, result.decoyOffset);
+
+      // Offer the coercion-scenario demo
+      coercionSection.classList.remove('hidden');
 
       // Show download section
       downloadSection.classList.remove('hidden');
@@ -246,6 +292,96 @@ export function initEncrypt(): void {
       zeroBytes(lastContainer);
       lastContainer = null;
       downloadSection.classList.add('hidden');
+    }
+  });
+
+  // If the user leaves the demo behind by downloading, don't retain the
+  // scenario's passphrase copy either — but keep it available while the
+  // coercion section is still on screen and un-run.
+  btnDownload.addEventListener('click', () => {
+    if (!coercionSteps.classList.contains('hidden')) clearDemoMaterial();
+  });
+
+  // ─── Coercion-scenario demo ────────────────────────────────────────────
+  // Re-decrypts the just-created container with BOTH passphrases through the
+  // real WASM open path — no fabricated output — and narrates the guarantee.
+
+  function coercionPanel(
+    accent: 'crimson' | 'amber',
+    heading: string,
+    sub: string,
+    message: string,
+  ): HTMLElement {
+    const wrap = document.createElement('div');
+    wrap.className = 'border border-vault-border rounded-lg p-4 bg-vault-bg';
+    const h = document.createElement('p');
+    h.className = `text-sm font-semibold text-vault-${accent} mb-1`;
+    h.textContent = heading;
+    const s = document.createElement('p');
+    s.className = 'text-xs text-vault-text-muted mb-2';
+    s.textContent = sub;
+    const body = document.createElement('div');
+    body.className =
+      'bg-vault-surface border border-vault-border rounded p-3 text-sm whitespace-pre-wrap break-words';
+    body.setAttribute('tabindex', '0');
+    body.setAttribute('role', 'region');
+    body.setAttribute('aria-label', `${heading} — decrypted message`);
+    body.textContent = message;
+    wrap.append(h, s, body);
+    return wrap;
+  }
+
+  btnCoercion.addEventListener('click', async () => {
+    if (!demoMaterial) return;
+    const { container, realPass, decoyPass, config } = demoMaterial;
+
+    btnCoercion.disabled = true;
+    btnCoercion.textContent = 'DECRYPTING BOTH SLOTS (Rust/WASM)…';
+    coercionSteps.classList.remove('hidden');
+    coercionSteps.innerHTML = '';
+
+    try {
+      // Adversary coerces the decoy passphrase and decrypts.
+      const decoyResult = await openContainer(container.slice(), decoyPass, config);
+      coercionSteps.appendChild(
+        coercionPanel(
+          'amber',
+          '1 · Adversary forces out the DECOY passphrase',
+          'They decrypt and recover a complete, plausible message. As far as they can tell, this is the whole vault.',
+          decoyResult.success && decoyResult.message !== undefined
+            ? decoyResult.message
+            : '(decryption failed)',
+        ),
+      );
+
+      const note1 = document.createElement('p');
+      note1.className = 'text-xs text-vault-crimson font-semibold';
+      note1.textContent =
+        'This is all the adversary can prove exists. The rest of the container is indistinguishable from random padding.';
+      coercionSteps.appendChild(note1);
+
+      // You still hold the real passphrase.
+      const realResult = await openContainer(container.slice(), realPass, config);
+      coercionSteps.appendChild(
+        coercionPanel(
+          'crimson',
+          '2 · You still hold the REAL passphrase',
+          'The same container bytes, opened with a different passphrase, yield a second, independent message at a different offset.',
+          realResult.success && realResult.message !== undefined
+            ? realResult.message
+            : '(decryption failed)',
+        ),
+      );
+
+      const note2 = document.createElement('p');
+      note2.className = 'text-sm text-vault-text font-semibold pt-1';
+      note2.textContent =
+        'The decoy decryption gave the adversary no information about this second message — not its content, not its offset, not even that it exists.';
+      coercionSteps.appendChild(note2);
+    } finally {
+      // The demo has served its purpose — wipe the retained copy + passphrases.
+      clearDemoMaterial();
+      btnCoercion.textContent = '✓ SCENARIO COMPLETE';
     }
   });
 }

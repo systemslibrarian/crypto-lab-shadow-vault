@@ -3,6 +3,25 @@
  */
 import type { Argon2Params } from '../types/vault.js';
 import { RECOMMENDED_PARAMS, validateParams } from '../types/vault.js';
+import { benchmarkArgon2 } from '../crypto/wasm.js';
+
+/** Human-readable duration for very large second counts. */
+function humanizeSeconds(seconds: number): string {
+  if (!Number.isFinite(seconds)) return 'longer than the universe has existed';
+  const YEAR = 365.25 * 24 * 3600;
+  if (seconds < 1) return '< 1 second';
+  if (seconds < 60) return `${seconds.toFixed(0)} seconds`;
+  if (seconds < 3600) return `${(seconds / 60).toFixed(0)} minutes`;
+  if (seconds < 86400) return `${(seconds / 3600).toFixed(1)} hours`;
+  if (seconds < YEAR) return `${(seconds / 86400).toFixed(0)} days`;
+  const years = seconds / YEAR;
+  if (years < 1e3) return `${years.toFixed(0)} years`;
+  if (years < 1e6) return `${(years / 1e3).toFixed(0)} thousand years`;
+  if (years < 1e9) return `${(years / 1e6).toFixed(0)} million years`;
+  if (years < 1e12) return `${(years / 1e9).toFixed(0)} billion years`;
+  if (years < 1e15) return `${(years / 1e12).toFixed(0)} trillion years`;
+  return 'longer than the universe has existed';
+}
 
 let currentParams: Argon2Params = { ...RECOMMENDED_PARAMS };
 
@@ -30,10 +49,12 @@ export function initParams(): void {
 
   const warnings = document.getElementById('param-warnings')!;
   const estimate = document.getElementById('param-estimate')!;
+  const attackReadout = document.getElementById('param-attacker-cost');
   const btnDefaults = document.getElementById('btn-restore-defaults')!;
 
   let isOpen = false;
   let benchmarkTimeout: ReturnType<typeof setTimeout> | null = null;
+  let benchRunId = 0;
 
   btnToggle.addEventListener('click', () => {
     isOpen = !isOpen;
@@ -84,13 +105,54 @@ export function initParams(): void {
   }
 
   async function runBenchmark() {
-    // Rough estimate based on params — actual timing depends on hardware.
-    // Argon2id with 64MB/3iter/4par typically takes 1-3s in WASM.
-    const memFactor = currentParams.memory / 65536;
-    const iterFactor = currentParams.iterations / 3;
-    const baseMs = 1500; // ~1.5s baseline for 64MB/3iter
-    const estimatedMs = baseMs * memFactor * iterFactor;
-    estimate.textContent = `~${(estimatedMs / 1000).toFixed(1)}s (est.)`;
+    // Run ONE real Argon2id derivation on this device and report the measured
+    // wall-clock time — no hard-coded formula. Then derive an honest attacker
+    // cost from that measurement.
+    const runId = ++benchRunId;
+    estimate.textContent = 'measuring…';
+    if (attackReadout) attackReadout.textContent = '';
+
+    let msPerGuess: number;
+    try {
+      msPerGuess = await benchmarkArgon2(
+        currentParams.memory,
+        currentParams.iterations,
+        currentParams.parallelism,
+      );
+    } catch {
+      if (runId === benchRunId) estimate.textContent = 'measurement unavailable';
+      return;
+    }
+
+    // A slower/faster later run may have superseded this one.
+    if (runId !== benchRunId) return;
+
+    estimate.textContent = `${(msPerGuess / 1000).toFixed(2)}s (measured on this device)`;
+
+    if (attackReadout) {
+      // Attacker cost = time per guess × number of guesses to exhaust the
+      // keyspace. Expected work is half the keyspace, so 2^(bits-1) guesses.
+      // This is single-machine; real attackers parallelize, but the point is
+      // how tuning the KDF moves the exponent's coefficient.
+      const secPerGuess = msPerGuess / 1000;
+      const guesses40 = Math.pow(2, 40 - 1);
+      const guesses60 = Math.pow(2, 60 - 1);
+      attackReadout.textContent = '';
+      const intro = document.createTextNode(
+        'At this cost, one machine brute-forcing a passphrase would need about ',
+      );
+      const s40 = document.createElement('span');
+      s40.className = 'text-vault-text font-mono';
+      s40.textContent = humanizeSeconds(secPerGuess * guesses40);
+      const mid = document.createTextNode(' for 40 bits of entropy, or ');
+      const s60 = document.createElement('span');
+      s60.className = 'text-vault-text font-mono';
+      s60.textContent = humanizeSeconds(secPerGuess * guesses60);
+      const end = document.createTextNode(
+        ' for 60 bits. Deniability holds only while BOTH passphrases sit on the far side of that wall — raise memory to push it further.',
+      );
+      attackReadout.append(intro, s40, mid, s60, end);
+    }
   }
 
   memSlider.addEventListener('input', updateDisplay);
