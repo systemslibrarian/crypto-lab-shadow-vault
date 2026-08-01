@@ -151,7 +151,15 @@ export function initParams(): void {
       const end = document.createTextNode(
         ' for 60 bits. Deniability holds only while BOTH passphrases sit on the far side of that wall — raise memory to push it further.',
       );
-      attackReadout.append(intro, s40, mid, s60, end);
+      // The figures above model one machine exhausting a keyspace from scratch,
+      // which badly understates a precomputing adversary: Shadow Vault's salt is
+      // a constant (SHA-256 of the role string), so the whole world shares two
+      // salts and the table is built once, ever. See THREAT_MODEL.md §2.9.
+      const caveat = document.createElement('span');
+      caveat.className = 'block mt-2 text-vault-crimson';
+      caveat.textContent =
+        'Caveat: that is one machine starting from scratch. Shadow Vault has no per-container salt — the headerless format has nowhere to put one, so every container in the world shares the same two salts. An attacker who has already built an Argon2id dictionary at these parameters replays it against your container for free. Read the numbers above as the cost of being the FIRST attacker, not the cost of attacking you. Only passphrase entropy stands behind that. (THREAT_MODEL.md §2.9)';
+      attackReadout.append(intro, s40, mid, s60, end, caveat);
     }
   }
 

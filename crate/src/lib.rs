@@ -71,6 +71,15 @@ impl Drop for DerivedKeyMaterial {
 
 // ─── Argon2id key derivation ─────────────────────────────────────────────
 
+// NOT a salt in the security sense. This is a domain separator: it depends only
+// on the role string and the collision counter — never on the passphrase, the
+// container, or any randomness — so every Shadow Vault container in existence
+// shares the same two values. Consequence: Argon2id precomputation is GLOBAL. One
+// dictionary built at a given parameter set replays against every container ever
+// made, so the 64 MiB memory cost is paid once by the world, not once per target.
+// This is inherent to the headerless deniable format (there is nowhere to store a
+// random salt and still recover the key from the passphrase alone) and is an
+// accepted trade-off, not an oversight. See THREAT_MODEL.md §2.9.
 fn derive_salt(role: &str, collision_counter: u32) -> [u8; 32] {
     let salt_string = if collision_counter == 0 {
         format!("shadow-vault:v1:{role}")

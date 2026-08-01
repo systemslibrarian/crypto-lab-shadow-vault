@@ -24,6 +24,8 @@ Argon2id with high memory parameters (default: 64 MB, 3 iterations, parallelism 
 
 **Constraint:** Deniability collapses if *either* passphrase can be brute-forced. Both passphrases must be strong.
 
+**Critical constraint — the salt is a global constant, so precomputation is shared across every container in the world.** See §2.9. The per-guess cost above is real, but an attacker pays it *once for the whole world*, not once per container. Read §1.3 as "brute-forcing a passphrase is expensive **the first time anyone does it**", not as "brute-forcing a passphrase is expensive **against this container**."
+
 ### 1.4 Ciphertext integrity
 
 ChaCha20-Poly1305 AEAD with a fixed AAD (`shadow-vault:v1`) provides both confidentiality and integrity. Any modification to the ciphertext, tag, or associated data causes decryption to fail.
@@ -109,6 +111,33 @@ Passphrases are passed to Argon2id as raw UTF-8 bytes with no Unicode normalizat
 Shadow Vault is served as static files from GitHub Pages. If the repository, CI pipeline, or CDN is compromised, the served code could be modified to exfiltrate passphrases.
 
 **Mitigation:** All runtime assets — HTML, JS, the WASM module, and fonts — are self-hosted same-origin, so the app makes no third-party requests and works fully offline. There is no external origin (Google Fonts, CDN, analytics, or remote script) to compromise independently, so Subresource Integrity is unnecessary for the current asset set. Users who require high assurance should audit the source, build locally with the pinned toolchain, and serve from a trusted origin they control.
+
+### 2.9 Global-constant salt (precomputation is shared across every container)
+
+A salt exists to make each container a separate computation, so that work spent attacking one container is worth nothing against the next. Shadow Vault does not get that property. The format is headerless — there is nowhere to store a random salt and still recover the key from the passphrase alone — so `derive_salt` in `crate/src/lib.rs` derives it deterministically:
+
+```
+salt = SHA-256("shadow-vault:v1:{role}")        # role is "real" or "decoy"
+salt = SHA-256("shadow-vault:v1:{role}:c{n}")   # n > 0 only after an offset collision
+```
+
+The salt depends on the role string and a collision counter. It does not depend on the passphrase, on the container, or on any randomness. **Every Shadow Vault container ever created shares the same two salts.**
+
+What follows from that:
+
+1. **Precomputation is global.** An adversary can build a single Argon2id dictionary at the default parameters (64 MiB, t=3, p=4) mapping candidate passphrase to (key, nonce, offset), and replay it against *every container in the world* at lookup speed. Two tables — one for `real`, one for `decoy` — cover the entire tool at default parameters.
+
+2. **The memory hardness is a build-time cost, not a per-target cost.** §1.3's "per-guess cost is significant" is true only for whoever builds the table first. Every attacker downstream of a published table pays nothing. Read §1.3 as *expensive the first time anyone does it*, not *expensive against this container*.
+
+3. **Time-memory tradeoffs apply.** Because salts do not vary, rainbow-table style tradeoffs — infeasible against properly salted KDFs — are available here.
+
+4. **Tuning the sliders only shifts which table an attacker needs.** Non-default Argon2id parameters force a separate table per parameter set, which raises the attacker's up-front cost, but the parameter space actually in use is small and the defaults dominate. This is obscurity, not salt.
+
+**What still holds:** the constant salt does not weaken Argon2id against a passphrase with genuine entropy. A passphrase outside the attacker's candidate list is still out of reach, and both slots remain independently protected. What is gone is the guarantee that attacking container B costs anything after container A. Passphrase strength is therefore the *only* thing standing between a container and a precomputed table — there is no per-container work factor behind it.
+
+**Mitigation:** Use high-entropy passphrases (diceware, 80+ bits) that will not appear in any dictionary an attacker precomputes, for *both* slots. Raising the Argon2id parameters off the defaults helps only marginally, for the reason in (4).
+
+**Not fixable in this format.** The headerless container reserves no field for a per-container salt; introducing one is a breaking format change and would need re-examination against §1.1. This is an accepted trade-off of deniability-by-headerlessness, documented rather than engineered away.
 
 ---
 
