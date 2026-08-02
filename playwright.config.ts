@@ -22,7 +22,10 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: 'npm run preview',
+    // Build before serving: `vite preview` only serves whatever is already in
+    // dist/, so without this a failing build leaves the previous good bundle in
+    // place and the suite passes green against code that no longer compiles.
+    command: 'npm run build && npm run preview',
     url: 'http://localhost:4173',
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,

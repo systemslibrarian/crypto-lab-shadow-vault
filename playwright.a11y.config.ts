@@ -26,7 +26,10 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run preview -- --port 4364 --strictPort',
+    // Build before serving: `vite preview` only serves whatever is already in
+    // dist/, so without this a failing build leaves the previous good bundle in
+    // place and the suite passes green against code that no longer compiles.
+    command: 'npm run build && npm run preview -- --port 4364 --strictPort',
     url: 'http://localhost:4364/crypto-lab-shadow-vault/',
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,
