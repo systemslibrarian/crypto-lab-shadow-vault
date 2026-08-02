@@ -3,7 +3,6 @@
  */
 import { openContainer, uploadContainer } from '../crypto/wasm.js';
 import type { VaultConfig, ContainerSize } from '../types/vault.js';
-import { getParams } from './params.js';
 
 export function initDecrypt(): void {
   const dropZone = document.getElementById('drop-zone')!;
@@ -19,6 +18,9 @@ export function initDecrypt(): void {
   const btnCopy = document.getElementById('btn-copy')!;
   const btnClear = document.getElementById('btn-clear-message')!;
   const offsetBar = document.getElementById('decrypt-offset-bar')!;
+  const memoryInput = document.getElementById('decrypt-param-memory') as HTMLSelectElement;
+  const iterationsInput = document.getElementById('decrypt-param-iterations') as HTMLSelectElement;
+  const parallelismInput = document.getElementById('decrypt-param-parallelism') as HTMLSelectElement;
 
   let loadedContainer: Uint8Array | null = null;
   let detectedSize: ContainerSize | null = null;
@@ -131,7 +133,12 @@ export function initDecrypt(): void {
 
     const config: VaultConfig = {
       containerSize: detectedSize,
-      argon2Params: getParams(),
+      argon2Params: {
+        memory: Number(memoryInput.value) * 1024,
+        iterations: Number(iterationsInput.value),
+        parallelism: Number(parallelismInput.value),
+        hashLength: 64,
+      },
     };
 
     const passVal = passInput.value;

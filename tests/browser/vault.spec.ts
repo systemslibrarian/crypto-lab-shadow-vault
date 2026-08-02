@@ -205,12 +205,20 @@ test.describe('Passphrase Strength Estimator', () => {
     await expect(label).toContainText('Weak');
   });
 
-  test('strong passphrase shows confidence', async ({ page }) => {
+  test('long complex passphrase keeps a randomness caveat', async ({ page }) => {
     await page.goto('/');
     await page.locator('#self-test-status').filter({ hasText: 'passed' }).waitFor({ timeout: 30_000 });
 
     await page.fill('#real-passphrase', 'c0mpl3x-P@ssphr@se-W1th-Symb0ls!2024');
     const label = page.locator('#real-strength-label');
-    await expect(label).toContainText(/Strong|Excellent/);
+    await expect(label).toContainText('randomness still matters');
+  });
+
+  test('long but recognizable password pattern is not called strong', async ({ page }) => {
+    await page.goto('/');
+    await page.locator('#self-test-status').filter({ hasText: 'passed' }).waitFor({ timeout: 30_000 });
+
+    await page.fill('#real-passphrase', 'Password123!Password123!');
+    await expect(page.locator('#real-strength-label')).toContainText('Weak');
   });
 });

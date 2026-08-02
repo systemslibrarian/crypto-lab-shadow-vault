@@ -35,17 +35,19 @@ function estimateStrength(passphrase: string): StrengthResult {
 
   // Penalize obvious patterns
   const lower = passphrase.toLowerCase();
+  const commonPattern = /(password|passphrase|qwerty|letmein|welcome|admin|dragon|monkey|shadow|vault)/.test(lower);
   const penalized = /^(.)\1+$/.test(passphrase) || // all same char
     /^(012|123|234|345|456|567|678|789|abc|bcd)/.test(lower) || // sequential
+    commonPattern ||
     passphrase.length < 4;
 
   const effectiveBits = penalized ? Math.min(bits, 20) : bits;
 
   if (effectiveBits < 40) return { bits: effectiveBits, label: 'Weak — easily brute-forced', color: '#dc2626', percent: 20 };
   if (effectiveBits < 60) return { bits: effectiveBits, label: 'Fair — vulnerable with Argon2id', color: '#f59e0b', percent: 40 };
-  if (effectiveBits < 80) return { bits: effectiveBits, label: 'Good — resistant to most attacks', color: '#3b82f6', percent: 65 };
-  if (effectiveBits < 100) return { bits: effectiveBits, label: 'Strong — computationally secure', color: '#10b981', percent: 85 };
-  return { bits: effectiveBits, label: 'Excellent', color: '#10b981', percent: 100 };
+  if (effectiveBits < 80) return { bits: effectiveBits, label: 'Uncertain — prefer 6+ random words', color: '#3b82f6', percent: 65 };
+  if (effectiveBits < 100) return { bits: effectiveBits, label: 'Promising only if randomly generated', color: '#10b981', percent: 85 };
+  return { bits: effectiveBits, label: 'High estimate — randomness still matters', color: '#10b981', percent: 100 };
 }
 
 function updateStrengthUI(passphrase: string, barId: string, labelId: string): void {
@@ -357,7 +359,7 @@ export function initEncrypt(): void {
       const note1 = document.createElement('p');
       note1.className = 'text-xs text-vault-crimson font-semibold';
       note1.textContent =
-        'This is all the adversary can prove exists. The rest of the container is indistinguishable from random padding.';
+        'This passphrase proves one message is readable. A format-aware adversary already knows Shadow Vault writes two slots, but cannot identify or read the other slot from this decryption.';
       coercionSteps.appendChild(note1);
 
       // You still hold the real passphrase.
@@ -376,7 +378,7 @@ export function initEncrypt(): void {
       const note2 = document.createElement('p');
       note2.className = 'text-sm text-vault-text font-semibold pt-1';
       note2.textContent =
-        'The decoy decryption gave the adversary no information about this second message — not its content, not its offset, not even that it exists.';
+        'The decoy decryption did not reveal this second message\'s content or offset. A format-aware adversary knows a second slot exists, but still lacks its passphrase and opening.';
       coercionSteps.appendChild(note2);
     } finally {
       // The demo has served its purpose — wipe the retained copy + passphrases.

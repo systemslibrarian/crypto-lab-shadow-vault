@@ -8,13 +8,13 @@ This document defines the security boundaries, threat categories, and honest lim
 
 ### 1.1 Passive file analysis
 
-An adversary who obtains the container file sees a fixed-size block of bytes with no headers, magic bytes, length fields, or structural markers. Statistical analysis (chi-squared, entropy per byte) shows uniform distribution — indistinguishable from `/dev/urandom` output, a LUKS header pad, or any other random blob.
+An adversary who obtains the container sees one of four accepted fixed-size byte lengths with no plaintext header or magic bytes. A four-byte message length exists inside each authenticated encrypted slot, so it is not visible without a valid passphrase. The bytes are intended to be statistically uniform, but the accepted file sizes and known two-slot format can fingerprint a file as a Shadow Vault container.
 
 **Tested:** `container_is_full_size`, `independent_containers_differ`, `all_zeros_container_no_match`, `all_ones_container_no_match`.
 
 ### 1.2 Single-passphrase coercion
 
-An adversary who compels the user to reveal one passphrase decrypts one message. The remaining bytes — including the other encrypted slot — are indistinguishable from the CSPRNG padding that fills the rest of the container. There is no way to prove a second message exists without the second passphrase.
+An adversary who compels the user to reveal one passphrase decrypts one message. The remaining bytes — including the other encrypted slot — are indistinguishable from the CSPRNG padding that fills the rest of the container. A format-aware adversary already knows Shadow Vault writes two slots; without the second passphrase they cannot identify the other slot's offset or contents from the decoy opening.
 
 **Constraint:** This only works if the revealed passphrase is the decoy. If the adversary already knows both passphrases, deniability is void.
 

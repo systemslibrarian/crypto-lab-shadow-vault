@@ -74,7 +74,7 @@ function paintCaption(): void {
     em.className = 'text-vault-text';
     em.textContent = 'uniform random noise';
     const t2 = document.createTextNode(
-      '. Nothing marks where a message lives, how many messages exist, or whether any exist at all.',
+      '. The bytes do not mark the slot locations or contents; the recognized file size and Shadow Vault format still imply that two slots exist.',
     );
     statsEl.append(t, em, t2);
     return;

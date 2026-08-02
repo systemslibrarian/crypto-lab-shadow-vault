@@ -351,6 +351,28 @@
             </div>
           </div>
 
+          <div class="bg-vault-surface border border-vault-border rounded-lg p-5 mb-6">
+            <h3 class="text-xs text-vault-text-dim mb-2">CREATION PARAMETERS</h3>
+            <p class="text-xs text-vault-text-muted mb-3">The headerless container does not store Argon2id settings. Select the values used when it was created; defaults are 64 MB, 3 iterations, parallelism 4.</p>
+            <div class="grid md:grid-cols-3 gap-4">
+              <label class="text-xs text-vault-text-dim">Memory (MB)
+                <select id="decrypt-param-memory" class="block mt-1 w-full bg-vault-bg border border-vault-border rounded px-3 py-2.5 text-vault-text min-h-[44px]">
+                  <option>16</option><option>32</option><option selected>64</option><option>128</option><option>256</option><option>512</option><option>1024</option>
+                </select>
+              </label>
+              <label class="text-xs text-vault-text-dim">Iterations
+                <select id="decrypt-param-iterations" class="block mt-1 w-full bg-vault-bg border border-vault-border rounded px-3 py-2.5 text-vault-text min-h-[44px]">
+                  <option>2</option><option selected>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option>
+                </select>
+              </label>
+              <label class="text-xs text-vault-text-dim">Parallelism
+                <select id="decrypt-param-parallelism" class="block mt-1 w-full bg-vault-bg border border-vault-border rounded px-3 py-2.5 text-vault-text min-h-[44px]">
+                  <option>1</option><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option><option>7</option><option>8</option>
+                </select>
+              </label>
+            </div>
+          </div>
+
           <div class="text-center mb-6">
             <button id="btn-decrypt" type="button" class="bg-vault-crimson hover:bg-vault-crimson-light text-white font-semibold px-8 py-3 rounded transition-colors duration-300 min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed" disabled>
               OPEN VAULT
@@ -377,13 +399,13 @@
               <span>Derivation: <span id="decrypt-time" class="font-mono"></span></span>
               <span class="flex items-center gap-2">
                 Slot offset:
-                <span id="decrypt-offset-bar" class="inline-block w-24 h-2 bg-vault-bg rounded overflow-hidden" role="img" aria-label="Slot offset shown as a bar with no number — redacted on purpose">
+                <span id="decrypt-offset-bar" class="inline-block w-24 h-2 bg-vault-bg rounded overflow-hidden" role="img" aria-label="Approximate slot offset shown as a bar">
                   <span class="block h-full bg-vault-crimson rounded" style="width:0%"></span>
                 </span>
                 <span class="text-vault-text-muted">(redacted)</span>
               </span>
             </div>
-            <p class="text-xs text-vault-text-muted mt-2 leading-relaxed">The exact offset is hidden on purpose — printing the number would leak that a message lives at that position, which is precisely what the format is designed to hide. The bar shows only roughly where in the container this slot fell.</p>
+            <p class="text-xs text-vault-text-muted mt-2 leading-relaxed">The bar deliberately reveals the slot's approximate position to teach deterministic offsets. The exact byte number is not printed, but the bar width is presentation rather than a security boundary.</p>
           </div>
         </section>
       </main>
@@ -421,16 +443,16 @@
         </section>
         <section>
           <h3 class="font-display text-lg font-semibold mb-2 text-vault-crimson">The Two-Passphrase Model</h3>
-          <p>Each passphrase independently derives an encryption key, a nonce, and a slot offset via Argon2id. The real passphrase decrypts the real message. The decoy passphrase decrypts the decoy. Without both passphrases, there is no way to prove two messages exist — or even that the container holds any message at all.</p>
+          <p>Each passphrase independently derives an encryption key, a nonce, and a slot offset via Argon2id. The real passphrase decrypts the real message. The decoy passphrase decrypts the decoy. A format-aware adversary knows the tool writes two slots, but without both passphrases cannot identify their contents or distinguish the unopened ciphertext from random padding.</p>
         </section>
         <section>
           <h3 class="font-display text-lg font-semibold mb-2 text-vault-crimson">Why Argon2id Is Load-Bearing</h3>
           <p>Argon2id is not incidental — it is the security foundation. Without memory-hard key derivation, the deniability model collapses: an attacker who can brute-force both passphrases simultaneously recovers both offsets and both messages.</p>
-          <p class="mt-2">Argon2id with high memory parameters (64MB+ per derivation, per RFC 9106) makes simultaneous brute-force computationally hopeless. The cost scales per passphrase attempt — attacking two passphrases is twice as expensive.</p>
+          <p class="mt-2">Argon2id makes the first dictionary construction expensive, but this demo has no per-container salt: a table built for one parameter set can be reused across every Shadow Vault container at those settings. High-entropy, independently generated passphrases—not a claimed per-target work factor—are the defense.</p>
         </section>
         <section>
           <h3 class="font-display text-lg font-semibold mb-2 text-vault-crimson">Container Format</h3>
-          <p>The container is a fixed-size block of bytes. It begins as entirely random (CSPRNG). Two encrypted message slots are written at derived offsets, overwriting random bytes. The result: no headers, no magic bytes, no length fields, no structure detectable by forensic analysis. The entire container looks like random data.</p>
+          <p>The container is one of four recognized fixed sizes and contains two encrypted slots at derived offsets in CSPRNG padding. It has no plaintext header or magic bytes. Each encrypted slot's plaintext includes a four-byte length field, hidden inside the authenticated ciphertext. Its bytes should look random, while the recognized size and known format still fingerprint it as a Shadow Vault container.</p>
           <p class="mt-2 font-mono text-xs text-vault-text-dim break-words">Passphrase → Argon2id(64B) → key[0..31] + nonce[32..43] + offset[44..63] → ChaCha20-Poly1305 AEAD</p>
         </section>
         <section>

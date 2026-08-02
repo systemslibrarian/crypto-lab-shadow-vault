@@ -2,7 +2,7 @@
 
 ## What It Is
 
-Shadow Vault is a browser demonstration of deniable encryption that combines Argon2id key derivation, ChaCha20-Poly1305 AEAD encryption, and SHA-256 salt derivation in a fixed-size random container. It solves the problem of plausibly revealing one decryptable message while keeping a second message hidden in the same blob without headers or structural markers. The cryptographic core is symmetric encryption with password-based key derivation, executed in Rust/WASM through a Web Worker. It is not asymmetric, threshold, or zero-knowledge cryptography, and it is not positioned as production deniable storage.
+Shadow Vault is a browser demonstration of deniable encryption that combines Argon2id key derivation, ChaCha20-Poly1305 AEAD encryption, and SHA-256 domain separation in a fixed-size random container. It demonstrates revealing one decryptable message while keeping a second slot's location and contents hidden in the same blob. A format-aware adversary knows the tool always writes two slots. The cryptographic core is symmetric encryption with password-based key derivation, executed in Rust/WASM through a Web Worker. It is not asymmetric, threshold, or zero-knowledge cryptography, and it is not positioned as production deniable storage.
 
 ## When to Use It
 
@@ -15,7 +15,7 @@ Shadow Vault is a browser demonstration of deniable encryption that combines Arg
 
 **[systemslibrarian.github.io/crypto-lab-shadow-vault](https://systemslibrarian.github.io/crypto-lab-shadow-vault/)**
 
-The demo lets you encrypt and decrypt containers end-to-end in the browser. In encrypt mode, you enter real and decoy passphrases/messages, choose container size (4/8/16/32 KB), and tune Argon2id parameters (memory, iterations, parallelism). In decrypt mode, you upload a vault file and try a passphrase to open whichever message that passphrase maps to.
+The demo lets you encrypt and decrypt containers end-to-end in the browser. In encrypt mode, you enter real and decoy passphrases/messages, choose container size (4/8/16/32 KB), and tune Argon2id parameters (memory, iterations, parallelism). In decrypt mode, you upload a vault file, select the Argon2id settings used at creation (the headerless file cannot store them), and try a passphrase to open whichever message that passphrase maps to.
 
 Several exhibits make the abstract guarantee tangible rather than merely asserted:
 
