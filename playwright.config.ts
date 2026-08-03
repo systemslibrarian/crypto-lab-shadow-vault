@@ -10,7 +10,7 @@ export default defineConfig({
   timeout: 120_000, // Argon2id derivation can be slow
 
   use: {
-    baseURL: 'http://localhost:4173/crypto-lab-shadow-vault/',
+    baseURL: 'http://localhost:4708/crypto-lab-shadow-vault/',
     trace: 'on-first-retry',
   },
 
@@ -25,8 +25,8 @@ export default defineConfig({
     // Build before serving: `vite preview` only serves whatever is already in
     // dist/, so without this a failing build leaves the previous good bundle in
     // place and the suite passes green against code that no longer compiles.
-    command: 'npm run build && npm run preview',
-    url: 'http://localhost:4173',
+    command: 'npm run build && npm run preview -- --port 4708 --strictPort',
+    url: 'http://localhost:4708/crypto-lab-shadow-vault/',
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,
   },
