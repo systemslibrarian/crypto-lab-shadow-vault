@@ -18,7 +18,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Build the WASM crypto core from source so the deployed artifact is
       # provably the one the audited Rust produces — not a stale committed blob.
