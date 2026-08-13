@@ -43,7 +43,14 @@
   .cl-btn{
     display:inline-flex;align-items:center;gap:.4rem;
     padding:.5rem .85rem;border-radius:10px;
-    border:1px solid color-mix(in srgb, var(--accent, #35d6bb) 38%, transparent);
+    /* WCAG 1.4.11. Ghost buttons — no fill — so this border is the whole
+       control boundary. Mixing the PAGE's --accent makes the ratio a function
+       of each lab's palette: measured 1.46:1 here, and across the fleet all
+       156 labs using this form fail, median 2.34:1, worst 1.20:1. For dark
+       accents 3:1 is unreachable at ANY mix percentage, so no number fixes
+       it. --cl-ink is the header's own ink, already required to be readable
+       on the bar, so mixing that is accent-independent. */
+    border:1px solid color-mix(in srgb, var(--cl-ink) 70%, transparent);
     background:transparent;color:var(--cl-ink);cursor:pointer;
     font:inherit;font-size:.78rem;font-weight:700;letter-spacing:.1em;
     text-transform:uppercase;text-decoration:none;transition:background .15s,border-color .15s,color .15s;
