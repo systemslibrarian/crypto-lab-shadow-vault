@@ -29,7 +29,11 @@
   --vault-crimson: #b64040;
   --vault-crimson-light: #c74f4f;
   --vault-crimson-text: #b64040;
-  --vault-amber: #8f6a00;
+  /* #866300, not the former #8f6a00: the coercion panels set amber TEXT on
+     --vault-bg (#f5f2eb), and #8f6a00 measured 4.44:1 there — under the 4.5:1
+     floor for its 14px/600 headings. #866300 is 4.95:1 on --vault-bg and
+     5.28:1 on --vault-surface. */
+  --vault-amber: #866300;
   --vault-amber-light: #c79a21;
   --vault-text: #221d17;
   --vault-text-dim: #3e352a;
@@ -53,12 +57,35 @@ html { background-color: var(--vault-bg, #2a2a2a); }
 [data-theme] .text-vault-danger { color: var(--vault-danger) !important; }
 [data-theme] .text-vault-success { color: var(--vault-success) !important; }
 [data-theme] .bg-vault-crimson { background-color: var(--vault-crimson) !important; }
+/* WCAG 1.4.3 — the coercion button's hover state. Without this override,
+   `hover:bg-vault-crimson` fell through to Tailwind's config value (#e05555),
+   a colour no theme uses anywhere else, and its white label measured 3.75:1
+   the moment the pointer touched the button — including the instant after
+   clicking it, which is a state the reader always passes through. The themed
+   crimsons hold ≥4.5:1 under white text by design. */
+[data-theme] .hover\:bg-vault-crimson:hover { background-color: var(--vault-crimson) !important; }
 [data-theme] .hover\:bg-vault-crimson-light:hover { background-color: var(--vault-crimson-light) !important; }
+/* Same trap as hover:bg-vault-crimson above, on the lab's own skip link: with
+   no override, `focus:bg-vault-crimson` fell through to Tailwind's #e05555 and
+   the focused link's white label measured 3.75:1 — on the very first Tab stop
+   a keyboard reader hits. */
+[data-theme] .focus\:bg-vault-crimson:focus { background-color: var(--vault-crimson) !important; }
 [data-theme] .hover\:text-vault-text:hover { color: var(--vault-text) !important; }
+/* The !important on `[data-theme] .text-vault-crimson` above outranks plain
+   Tailwind utilities, so the coercion button's `hover:text-white` silently
+   lost: hovered, it kept its crimson-text ink on the crimson hover fill —
+   2.35:1, on the state a reader is in the instant they press the button. The
+   hover ink has to be re-asserted at the same weight. */
+[data-theme] .hover\:text-white:hover { color: #ffffff !important; }
 [data-theme] .hover\:text-vault-crimson-light:hover { color: var(--vault-crimson-text) !important; }
 [data-theme] .hover\:border-vault-text:hover { border-color: var(--vault-text) !important; }
-[data-theme] .focus\:border-vault-crimson:focus { border-color: var(--vault-crimson) !important; }
-[data-theme] .focus\:ring-vault-crimson:focus { --tw-ring-color: var(--vault-crimson) !important; }
+/* --vault-crimson-text, not --vault-crimson, for the focused border and ring:
+   the inputs carry Tailwind's `outline-none` utility, which (being in a later
+   cascade layer) beats the base-layer focus-visible outline — so this border
+   IS the focus indicator on every input, and the button-background crimson
+   measured 2.09:1 against the dark card. The text-role crimson holds 4.9:1. */
+[data-theme] .focus\:border-vault-crimson:focus { border-color: var(--vault-crimson-text) !important; }
+[data-theme] .focus\:ring-vault-crimson:focus { --tw-ring-color: var(--vault-crimson-text) !important; }
 [data-theme] .focus\:border-vault-amber:focus { border-color: var(--vault-amber) !important; }
 [data-theme] .focus\:ring-vault-amber:focus { --tw-ring-color: var(--vault-amber) !important; }
 [data-theme] .accent-vault-crimson { accent-color: var(--vault-crimson) !important; }
@@ -80,6 +107,26 @@ html { background-color: var(--vault-bg, #2a2a2a); }
    HEIGHT, padding dead space above the fold. Reset it. */
 @media (max-width: 640px) {
   .cl-hero-main { flex-basis: auto; min-width: 0; }
+}
+
+/* WCAG 1.4.11 — the primary buttons' boundary. Their crimson fill holds 4.9:1
+   against the light page but only 2.55:1 against the dark one (#c62828 on
+   #2a2a2a), and they had no border at all, so in dark the control had no 3:1
+   delineator. --vault-crimson-text is the accent tuned to read on each
+   theme's surfaces (6.0:1 on dark --vault-bg; in light it equals the fill,
+   where the fill itself already clears 3:1), so one token gives both themes a
+   passing edge without a per-theme rule. */
+#btn-encrypt,
+#btn-decrypt {
+  border: 1px solid var(--vault-crimson-text);
+}
+
+/* WCAG 1.4.1 — links inside the footer's prose blocks were distinguishable
+   only by hover colour: Tailwind's preflight strips text-decoration and no
+   class restored it, so "Source" and the related-demo links sat in running
+   text with no non-colour cue at all (axe: link-in-text-block). */
+footer a {
+  text-decoration: underline;
 }
 
 #theme-toggle {
@@ -113,8 +160,13 @@ html { background-color: var(--vault-bg, #2a2a2a); }
     outline: none;
   }
 
-  /* WCAG 2.4.7 — always show a clear, high-contrast focus ring for
-     keyboard users on every interactive control, regardless of theme. */
+  /* WCAG 2.4.7 / 1.4.11 — always show a clear, high-contrast focus ring for
+     keyboard users on every interactive control, regardless of theme.
+     --vault-crimson-text, NOT --vault-crimson: the ring paints against the
+     page surfaces, and the button-background crimson measures only 2.09:1 on
+     the dark surface (#c62828 on #383838) — a focused input's brightest
+     delineator was under 3:1. The text-role crimson is the one tuned to read
+     on each theme's surfaces (4.9:1 dark, 4.9:1 light). */
   a:focus-visible,
   button:focus-visible,
   input:focus-visible,
@@ -122,7 +174,7 @@ html { background-color: var(--vault-bg, #2a2a2a); }
   select:focus-visible,
   [tabindex]:focus-visible,
   [role="tab"]:focus-visible {
-    outline: 2px solid var(--vault-crimson);
+    outline: 2px solid var(--vault-crimson-text);
     outline-offset: 2px;
     border-radius: 2px;
   }

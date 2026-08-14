@@ -152,7 +152,12 @@
     else dedupeBanner();
   })();
 </script>
-    <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:bg-vault-crimson focus:text-white focus:px-4 focus:py-2 focus:z-50 focus:rounded">Skip to content</a>
+    <!-- focus:z-[1002], not z-50: the sticky shared top bar sits at z-index:1000,
+         and this link's focused rendering lands at top:0.5rem — inside the bar's
+         box. At z-50 the bar painted OVER the focused link, so a keyboard
+         reader's second Tab stop was invisible (the gate's expectFocusedOnTop
+         check is what keeps this from regressing). -->
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:bg-vault-crimson focus:text-white focus:px-4 focus:py-2 focus:z-[1002] focus:rounded">Skip to content</a>
     <div id="app" class="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       <!-- Header -->
       <div class="relative">

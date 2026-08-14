@@ -1,91 +1,63 @@
-import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import {
+  boot,
+  driveAllStates,
+  expectBaselineNotStale,
+  NARROW,
+  reportCollected,
+  watchPageErrors,
+} from './gate';
 
 /**
- * WCAG regression gate. Deploys are already gated on the Rust crypto KATs;
- * this gates them on accessibility the same way. Scans the full page — both
- * tab panels, every collapsible section expanded, in both themes — so the
- * whole surface a keyboard/AT user can reach is covered.
+ * WCAG A/AA regression gate.
+ *
+ * The lab is driven along everything it teaches: the arrival state, encrypt
+ * tab active, every derived-state region hidden and both primary buttons
+ * disabled behind the WASM self-test; both skip links focused — with an
+ * occlusion check, because this page's own skip link used to slide UNDER the
+ * sticky top bar (`focus:z-50` vs `z-index:1000`); the passphrase eye toggle
+ * pressed; the strength meter on a weak and a strong passphrase; the
+ * identical-passphrase and oversized-message errors; the Argon2id params
+ * panel open with a genuinely measured derivation cost, driven to its legal
+ * 16 MB floor for the RFC 9106 warning and restored; a real vault derived
+ * through the Argon2id/ChaCha20-Poly1305 worker, its container map asserted
+ * to be in the reduced-motion end state, flipped to the attacker view; the
+ * coercion scenario played out with two more real derivations; the container
+ * downloaded, fed back through the decrypt tab's drop zone, refused with a
+ * wrong passphrase (the deliberately uniform verdict) and opened with the
+ * real one — the decrypted text asserted to BE the message that went in; the
+ * How It Works modal; hover on the buttons that repaint their fill; and
+ * finally the theme switched live through the shared bar with everything on
+ * screen. Every one of those states is scanned, in both themes, at desktop
+ * and phone width.
+ *
+ * See `gate.ts` for why nothing is injected into the page (`visualizer.ts`
+ * branches on `matchMedia`, which the old gate's style tag could not reach,
+ * and its animation is `setInterval` chains that style tag never touched
+ * anyway), why no region is revealed from script (the old gate scanned eight
+ * force-revealed EMPTY regions), why the lab's defaults are asserted rather
+ * than assumed, and why `violations` is not the whole oracle.
  */
 
-const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
+for (const theme of ['dark', 'light'] as const) {
+  test(`no WCAG A/AA violations in ${theme} theme`, async ({ page }) => {
+    test.setTimeout(1_800_000);
+    const errors = watchPageErrors(page);
+    await boot(page, theme);
+    await driveAllStates(page, theme);
+    expect(errors, errors.join('\n')).toEqual([]);
+    expectBaselineNotStale();
+    reportCollected();
+  });
 
-/** Neutralize transitions/animations so nothing is mid-fade when axe samples color. */
-async function killMotion(page: Page): Promise<void> {
-  await page.addStyleTag({
-    content: `*,*::before,*::after{transition:none!important;animation:none!important}`,
+  test(`no WCAG A/AA violations in ${theme} theme at 380px`, async ({ page }) => {
+    test.setTimeout(1_800_000);
+    const errors = watchPageErrors(page);
+    await page.setViewportSize(NARROW);
+    await boot(page, theme);
+    await driveAllStates(page, `${theme} @380px`);
+    expect(errors, errors.join('\n')).toEqual([]);
+    expectBaselineNotStale();
+    reportCollected();
   });
 }
-
-/**
- * Reveal every panel axe should see: open the Argon2 params section, un-hide
- * both tab panels and their result/progress regions, and drop `hidden` on any
- * class-toggled container so its contents are in the accessibility tree.
- */
-async function revealAll(page: Page): Promise<void> {
-  await page.evaluate(() => {
-    for (const d of document.querySelectorAll('details')) d.open = true;
-
-    // Un-collapse the Argon2id parameters panel.
-    document.getElementById('params-panel')?.classList.remove('hidden');
-    document
-      .getElementById('btn-toggle-params')
-      ?.setAttribute('aria-expanded', 'true');
-
-    // Show both tab panels at once so decrypt-side markup is scanned too.
-    for (const id of ['panel-encrypt', 'panel-decrypt']) {
-      document.getElementById(id)?.classList.remove('hidden');
-    }
-
-    // Reveal progress / result / visualizer / download regions that start hidden.
-    for (const id of [
-      'encrypt-progress',
-      'container-visualizer',
-      'viz-view-toggle',
-      'coercion-section',
-      'download-section',
-      'decrypt-progress',
-      'decrypt-result',
-      'file-info',
-    ]) {
-      document.getElementById(id)?.classList.remove('hidden');
-    }
-  });
-}
-
-async function scan(page: Page): Promise<void> {
-  const results = await new AxeBuilder({ page }).withTags(TAGS).analyze();
-  const summary = results.violations.map((v) => ({
-    id: v.id,
-    impact: v.impact,
-    help: v.help,
-    nodes: v.nodes.map((n) => n.target.join(' ')).slice(0, 5),
-  }));
-  expect(summary).toEqual([]);
-}
-
-async function primePage(page: Page): Promise<void> {
-  await page.goto('.');
-  // Let the WASM engine load and the self-test render its status text so the
-  // footer status line is in its final (colored) state when we scan.
-  await expect(page.locator('#self-test-status')).toContainText(
-    /self-test passed|FAILED/,
-    { timeout: 30_000 },
-  );
-  await killMotion(page);
-  await revealAll(page);
-}
-
-test('no WCAG A/AA violations in dark theme', async ({ page }) => {
-  await primePage(page);
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  await scan(page);
-});
-
-test('no WCAG A/AA violations in light theme', async ({ page }) => {
-  await primePage(page);
-  await page.locator('#cl-theme-toggle').click();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-  await revealAll(page);
-  await scan(page);
-});

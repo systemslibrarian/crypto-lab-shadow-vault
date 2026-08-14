@@ -6,17 +6,25 @@ import { defineConfig } from '@playwright/test';
  * Kept separate from playwright.config.ts (the WASM crypto integration
  * suite in tests/browser) so each has its own testDir/port and neither
  * collects the other's specs. Run `npm run build` first (CI does).
+ *
+ * The per-test timeout is set inside the spec (each test drives six real
+ * Argon2id derivations plus ~20 full scans), and the theme is seeded per test
+ * through localStorage in `gate.ts`'s `boot` — a `colorScheme` here would be
+ * dead weight, since the page themes itself off `data-theme`, not
+ * `prefers-color-scheme`. Two workers, not unbounded: each test runs a
+ * 4-thread Argon2id in a WASM worker, and four of those racing is how a
+ * benchmark that should read ~1s reads 10 and trips a wait.
  */
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
+  workers: 2,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? 'list' : [['list'], ['html', { open: 'never' }]],
   timeout: 60_000,
   use: {
     baseURL: 'http://localhost:4364/crypto-lab-shadow-vault/',
-    colorScheme: 'dark',
     trace: 'on-first-retry',
   },
   projects: [
