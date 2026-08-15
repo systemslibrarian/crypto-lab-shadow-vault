@@ -334,7 +334,7 @@ export async function boot(page: Page, theme: 'dark' | 'light'): Promise<void> {
 
   // ── The lab's own theme toggle is hidden, AND actually hidden ───────────
   // The shared bar hides every lab's in-page toggle with
-  // `body :is(#theme-toggle,…):not(#cl-theme-toggle) { display: none !important }`
+  // `body :is(#theme-toggle,…) { display: none !important }`
   // and leaves the element in the DOM so `main.ts`'s theme code keeps working.
   // That is only correct if it is genuinely removed: `opacity: 0` with
   // `pointer-events: none` would leave a `<button>` at `tabIndex: 0`, tabbable
@@ -1016,13 +1016,4 @@ export async function driveAllStates(page: Page, theme: string): Promise<void> {
   await expect(page.locator('#decrypt-result')).toBeVisible({ timeout: 180_000 });
   await expect(page.locator('#decrypted-message')).toHaveText(REAL_MSG);
   await scanAt('vault opened — the real message and the redacted offset bar');
-
-  // ── The theme switched IN PLACE, without a reload ───────────────────────
-  // Every other configuration seeds the theme through localStorage before
-  // `goto`, so this is the only state where the page is repainted live — with
-  // the decrypted vault, progress logs and error styling all on screen.
-  const other = theme.startsWith('dark') ? 'light' : 'dark';
-  await page.click('#cl-theme-toggle');
-  await expect(page.locator('html')).toHaveAttribute('data-theme', other);
-  await scan(page, `${theme} / switched live to ${other} with the vault open on screen`);
 }
