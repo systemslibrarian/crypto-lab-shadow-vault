@@ -1,0 +1,92 @@
+repository:
+  url: "https://github.com/systemslibrarian/crypto-lab-shadow-vault"
+  default_branch: "main"
+  commit_sha: "5021e78239d44be4ece372c4d3c6094604a115ab"
+
+scope_map:
+  files:
+    - path: "crate/src/lib.rs"
+      role: "math_core"
+      note: "Rust/WASM crypto core implementing encryption logic and KDF"
+    - path: "src/crypto/wasm.ts"
+      role: "protocol_glue"
+      note: "WASM bridge for crypto worker"
+    - path: "public/vault.worker.js"
+      role: "protocol_glue"
+      note: "Web worker for crypto tasks"
+    - path: "src/ui/visualizer.ts"
+      role: "ui"
+      note: "Visualizer logic"
+    - path: "src/ui/decrypt.ts"
+      role: "ui"
+      note: "Decrypt UI component"
+    - path: "src/ui/tabs.ts"
+      role: "ui"
+      note: "Tabs UI component"
+    - path: "src/ui/params.ts"
+      role: "ui"
+      note: "Parameters UI component"
+    - path: "src/ui/encrypt.ts"
+      role: "ui"
+      note: "Encrypt UI component"
+    - path: "src/main.ts"
+      role: "ui"
+      note: "App entry point"
+    - path: "tests/browser/vault.spec.ts"
+      role: "test"
+      note: "Playwright browser tests"
+    - path: "e2e/a11y.spec.ts"
+      role: "test"
+      note: "Accessibility tests"
+  entry_points:
+    - "crate/src/lib.rs"
+  extraction_order:
+    - "crate/src/lib.rs"
+  red_flags:
+    - "Passphrase is passed from JS to WASM as an immutable JS string which cannot be securely zeroized."
+    - "Argon2id salt acts as a domain separator dependent only on role and collision counter, not a true random salt."
+  scope_amendments: []
+
+coverage:
+  - file: "crate/src/lib.rs"
+    reviewed_symbols: []
+    excluded_symbols: []
+    unresolved_regions:
+      - "derive_salt"
+      - "derive_key_material"
+      - "uniform_offset"
+      - "slots_overlap"
+      - "encode_slot"
+      - "decode_slot"
+      - "aead_seal"
+      - "aead_open"
+      - "derive_all_keys"
+      - "create_container"
+      - "open_container"
+      - "get_max_message_length"
+      - "benchmark_argon2"
+    note: "Skeleton created in Pass A"
+
+audit_mode:
+  type: "pedagogical_model"
+  claimed_boundary: "A browser demonstration of deniable encryption combining Argon2id, ChaCha20-Poly1305, and SHA-256 in a fixed-size container to reveal one message while keeping a second hidden."
+  intentionally_omitted:
+    - "Production-grade deniable storage guarantees"
+    - "Asymmetric, threshold, or zero-knowledge cryptography"
+  delegated_components:
+    - "argon2 (RustCrypto)"
+    - "chacha20poly1305 (RustCrypto)"
+    - "sha2 (RustCrypto)"
+    - "getrandom"
+
+lab:
+  slug: "crypto-lab-shadow-vault"
+  name: "Shadow Vault"
+  claimed_standards:
+    - "Argon2id"
+    - "ChaCha20-Poly1305"
+    - "SHA-256"
+    - "RFC 8439"
+  claim_sources:
+    - "README.md"
+    - "crate/src/lib.rs"
