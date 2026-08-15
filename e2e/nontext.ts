@@ -502,9 +502,18 @@ export async function auditNonText(page: Page, within = 'body *'): Promise<NonTe
 
       const cs = styleOf(el);
       const fillOwn = ownPaint(cs, r, { x: r.left + r.width / 2, y: r.top + r.height / 2 });
-      const bw = ['Top', 'Right', 'Bottom', 'Left'].map((s) =>
-        parseFloat(cs.getPropertyValue(`border-${s.toLowerCase()}-width`) || '0')
-      );
+      // PER SIDE, not `border-top` for all four. The earlier form of this read
+      // `border-*-width` on every side but then judged `borderTopStyle` and
+      // measured `borderTopColor` alone, and excused the mismatch on the
+      // grounds that this page never mixes a transparent side with a painted
+      // one. It does: the ACTIVE tab is `border-b-2` in crimson with the other
+      // three sides at zero width, so `border-top` is the one edge that is not
+      // the boundary. Reading it happened to give the right answer only
+      // because Tailwind's `border-<colour>` sets all four colours at once.
+      // Elsewhere in this fleet the same code reported 1.12:1 for a selected
+      // tab whose entire boundary was a 3px `border-bottom` underline. The
+      // per-side walk removes the assumption rather than restating it.
+      //
       // A border only counts as an ATTEMPT at a boundary if it lays ink down.
       // Tailwind reserves layout slots with fully transparent borders — this
       // lab's inactive tab carries `border-b-2 border-transparent` purely so
@@ -512,13 +521,15 @@ export async function auditNonText(page: Page, within = 'body *'): Promise<NonTe
       // underline moves — and a zero-alpha border draws nothing, exactly like
       // no border. Without this test the inactive tab (no fill, text-only
       // identification, a WCAG-legitimate shape) is "judged" on ink that does
-      // not exist and reported at 1:1 forever. The side colours can differ,
-      // but this page never mixes a transparent side with a painted one, so
-      // the top colour speaks for the set — same convention as the ratio
-      // measurement below.
-      const borderInk = resolve(cs.borderTopColor);
-      const hasBorder =
-        bw.some((w) => w > 0) && cs.borderTopStyle !== 'none' && (borderInk?.a ?? 0) > 0;
+      // not exist and reported at 1:1 forever.
+      const SIDES = ['top', 'right', 'bottom', 'left'] as const;
+      const paintedSides = SIDES.filter((side) => {
+        if (parseFloat(cs.getPropertyValue(`border-${side}-width`) || '0') <= 0) return false;
+        if (cs.getPropertyValue(`border-${side}-style`) === 'none') return false;
+        const c = resolve(cs.getPropertyValue(`border-${side}-color`));
+        return !!c && c.a > 0;
+      });
+      const hasBorder = paintedSides.length > 0;
       const outlineW = parseFloat(cs.outlineWidth || '0');
       const outlineInk = resolve(cs.outlineColor);
       const hasOutline =
@@ -552,8 +563,8 @@ export async function auditNonText(page: Page, within = 'body *'): Promise<NonTe
       let best = fillRatio;
       let how = `fill ${fillRatio.toFixed(2)}:1 vs surround`;
 
-      if (hasBorder) {
-        const bc = borderInk ?? TRANSPARENT;
+      for (const side of paintedSides) {
+        const bc = resolve(cs.getPropertyValue(`border-${side}-color`)) ?? TRANSPARENT;
         // Over the element's OWN FILL, not the surround: `background-clip`
         // defaults to `border-box`, so the background really is painted
         // underneath the border. It matters wherever one translucent edge token
@@ -565,7 +576,7 @@ export async function auditNonText(page: Page, within = 'body *'): Promise<NonTe
         const borderRatio = ratio(border, surround);
         if (borderRatio > best) {
           best = borderRatio;
-          how = `border ${borderRatio.toFixed(2)}:1 vs surround`;
+          how = `border-${side} ${borderRatio.toFixed(2)}:1 vs surround`;
         }
       }
       if (hasOutline) {
