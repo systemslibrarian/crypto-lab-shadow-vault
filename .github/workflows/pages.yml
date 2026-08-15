@@ -49,10 +49,23 @@ jobs:
       - name: Build app
         run: npm run build
 
-      # Gate deploy on the WCAG A/AA accessibility suite (both themes), run
-      # against the production build — never ship an inaccessible page.
+      # Gate deploy on both browser suites, run against the production build.
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
+
+      # tests/browser/vault.spec.ts — the WASM integration suite: the engine
+      # self-test, the full encrypt/decrypt round-trip, INV-2 failure
+      # indistinguishability, the CSP header, and the strength estimator.
+      # Unlike most labs in this fleet, `test:a11y` here takes
+      # `--config=playwright.a11y.config.ts`, whose testDir is ./e2e — so it
+      # collects the axe specs ONLY, and this suite really was skipped on
+      # deploy. It runs in security-tests.yml, but that is a separate workflow
+      # on the same push and cannot stop the deploy that push triggers.
+      - name: WASM integration gate (browser)
+        run: npm run test:browser
+        env:
+          CI: true
+
       - name: Accessibility gate (axe, both themes)
         run: npm run test:a11y
         env:
