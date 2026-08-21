@@ -1,6 +1,9 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Tailwind v4 entry point. The three `@tailwind` directives v3 used were
+   replaced by one import, and v4 no longer auto-discovers
+   tailwind.config.js — `@config` keeps it as the source of truth for the
+   --vault-* palette, the display/mono font stacks and the forms plugin. */
+@import "tailwindcss";
+@config "../tailwind.config.js";
 
 :root[data-theme='dark'] {
   color-scheme: dark;
@@ -141,6 +144,18 @@ footer a {
 }
 
 @layer base {
+  /* v4's Preflight dropped v3's `button, [role="button"] { cursor: pointer }`
+     and now leaves buttons on the UA default (`cursor: default`). Every
+     control on this page is a real <button>, so without this the whole lab
+     silently stops showing a pointer on hover. Restored verbatim from the
+     Tailwind v4 upgrade guide; `:not(:disabled)` keeps the two primary
+     buttons' `disabled:cursor-not-allowed` intact while the WASM self-test
+     is still running. */
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
   /* Subtle noise texture */
   body {
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
