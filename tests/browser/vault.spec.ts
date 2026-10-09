@@ -9,7 +9,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('WASM Initialization & Self-Test', () => {
   test('crypto engine loads and self-test passes', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('.');
 
     // Wait for self-test to complete (WASM load + RFC 8439 vector check)
     const status = page.locator('#self-test-status');
@@ -18,7 +18,7 @@ test.describe('WASM Initialization & Self-Test', () => {
   });
 
   test('encrypt button is enabled after self-test', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('.');
     await page.locator('#self-test-status').filter({ hasText: 'passed' }).waitFor({ timeout: 30_000 });
 
     const btnEncrypt = page.locator('#btn-encrypt');
@@ -30,7 +30,7 @@ test.describe('WASM Initialization & Self-Test', () => {
 
 test.describe('Encrypt Flow', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('.');
     await page.locator('#self-test-status').filter({ hasText: 'passed' }).waitFor({ timeout: 30_000 });
   });
 
@@ -109,7 +109,7 @@ test.describe('Encrypt Flow', () => {
 
 test.describe('Failure Indistinguishability (INV-2)', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('.');
     await page.locator('#self-test-status').filter({ hasText: 'passed' }).waitFor({ timeout: 30_000 });
   });
 
@@ -133,7 +133,7 @@ test.describe('Failure Indistinguishability (INV-2)', () => {
 
 test.describe('Security Cleanup', () => {
   test('passphrase inputs are clearable', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('.');
     await page.locator('#self-test-status').filter({ hasText: 'passed' }).waitFor({ timeout: 30_000 });
 
     // Fill sensitive fields
@@ -151,7 +151,7 @@ test.describe('Security Cleanup', () => {
   });
 
   test('CSP meta tag is present and strict', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('.');
 
     const csp = await page.evaluate(() => {
       const meta = document.querySelector('meta[http-equiv="Content-Security-Policy"]');
@@ -174,7 +174,7 @@ test.describe('Security Cleanup', () => {
 
 test.describe('Tab Navigation', () => {
   test('encrypt/decrypt tabs switch correctly', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('.');
 
     // Verify encrypt tab is active by default
     const encryptPanel = page.locator('#panel-encrypt');
@@ -197,7 +197,7 @@ test.describe('Tab Navigation', () => {
 
 test.describe('Passphrase Strength Estimator', () => {
   test('weak passphrase shows warning', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('.');
     await page.locator('#self-test-status').filter({ hasText: 'passed' }).waitFor({ timeout: 30_000 });
 
     await page.fill('#real-passphrase', 'abc');
@@ -206,7 +206,7 @@ test.describe('Passphrase Strength Estimator', () => {
   });
 
   test('long complex passphrase keeps a randomness caveat', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('.');
     await page.locator('#self-test-status').filter({ hasText: 'passed' }).waitFor({ timeout: 30_000 });
 
     await page.fill('#real-passphrase', 'c0mpl3x-P@ssphr@se-W1th-Symb0ls!2024');
@@ -215,7 +215,7 @@ test.describe('Passphrase Strength Estimator', () => {
   });
 
   test('long but recognizable password pattern is not called strong', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('.');
     await page.locator('#self-test-status').filter({ hasText: 'passed' }).waitFor({ timeout: 30_000 });
 
     await page.fill('#real-passphrase', 'Password123!Password123!');
