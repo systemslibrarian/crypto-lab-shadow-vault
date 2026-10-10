@@ -30,6 +30,12 @@ const MIN_MEMORY_KIB: u32 = 16384; // 16 MB
 const MIN_ITERATIONS: u32 = 2;
 const MIN_PARALLELISM: u32 = 1;
 
+// Count actual KDF invocations per test thread without affecting release WASM.
+#[cfg(test)]
+std::thread_local! {
+    static TEST_KDF_CALLS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
 fn validate_argon2_params(
     memory_kib: u32,
     iterations: u32,
@@ -109,6 +115,8 @@ fn derive_key_material(
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
 
     let mut output = [0u8; 64];
+    #[cfg(test)]
+    TEST_KDF_CALLS.with(|count| count.set(count.get() + 1));
     argon2
         .hash_password_into(passphrase.as_bytes(), &salt, &mut output)
         .map_err(|e| format!("Argon2 hash error: {e}"))?;
@@ -126,6 +134,38 @@ fn derive_key_material(
     output.zeroize();
 
     Ok(material)
+}
+
+fn benchmark_single_derivation(
+    memory_kib: u32,
+    iterations: u32,
+    parallelism: u32,
+) -> Result<(), String> {
+    validate_argon2_params(memory_kib, iterations, parallelism)?;
+    // Exactly one ordinary role/counter derivation. No container, RNG, AEAD,
+    // offset calculation or collision retry. The benchmark-only black_box
+    // barriers discourage optimizing away a fixed input or discarded output;
+    // they are best-effort compiler hints, not constant-time guarantees.
+    // Drop zeroizes the material.
+    derive_key_material(
+        std::hint::black_box("shadow-vault-benchmark-sample"),
+        std::hint::black_box("real"),
+        memory_kib,
+        iterations,
+        parallelism,
+        0,
+    )
+    .map(|material| drop(std::hint::black_box(material)))
+}
+
+#[wasm_bindgen]
+/// Run one passphrase derivation; timing is measured in the Worker.
+///
+/// # Errors
+/// Returns an error if parameters are invalid or derivation fails.
+pub fn benchmark_argon2(memory_kib: u32, iterations: u32, parallelism: u32) -> Result<(), JsValue> {
+    benchmark_single_derivation(memory_kib, iterations, parallelism)
+        .map_err(|error| JsValue::from_str(&error))
 }
 
 // ─── Uniform offset (rejection sampling) ─────────────────────────────────
@@ -736,6 +776,22 @@ fn hex_to_bytes(hex: &str) -> Vec<u8> {
 )]
 mod tests {
     use super::*;
+
+    #[test]
+    fn benchmark_performs_exactly_one_derivation() {
+        TEST_KDF_CALLS.with(|count| count.set(0));
+        assert!(benchmark_single_derivation(16384, 2, 1).is_ok());
+        assert_eq!(TEST_KDF_CALLS.with(std::cell::Cell::get), 1);
+    }
+
+    #[test]
+    fn benchmark_rejects_invalid_parameters_before_deriving() {
+        TEST_KDF_CALLS.with(|count| count.set(0));
+        for (memory, iterations, lanes) in [(0, 2, 1), (16384, 0, 1), (16384, 2, 0)] {
+            assert!(benchmark_single_derivation(memory, iterations, lanes).is_err());
+        }
+        assert_eq!(TEST_KDF_CALLS.with(std::cell::Cell::get), 0);
+    }
 
     // ── Salt derivation ──────────────────────────────────────────────
 

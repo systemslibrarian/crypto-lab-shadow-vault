@@ -745,15 +745,12 @@ const DECOY_MSG = 'A plausible decoy for the gate.';
 /**
  * Prove a parameter change really re-ran the benchmark, then wait for it.
  *
- * `runBenchmark` performs a REAL `create_container` (two Argon2id derivations
- * at the current parameters) and only then paints the measured figure, so the
- * wait is on genuine work, not a timer. But the completion text is the same
- * wording before and after — "N.NNs (measured on this device)" — so a poll for
- * it after a change would happily accept the STALE figure. And the transient
- * `measuring…` cannot be polled for either: the benchmark is debounced 500ms
- * behind the slider and at the 16 MB floor finishes in ~130ms, so the whole
- * transient fits between two expect polls — the first collect run of this gate
- * timed out waiting to observe a state that had already come and gone. A
+ * `runBenchmark` performs one real Argon2id warm-up and three single-derivation
+ * samples at the current parameters before painting their median. The wait is
+ * on genuine work, not a timer. Completion wording is the same before and after,
+ * so polling for it alone could accept a stale figure. The transient
+ * `measuring…` is set immediately, then the new run is debounced 500ms; a fast
+ * derivation can complete between expect polls. A
  * `MutationObserver` armed BEFORE the change latches the `measuring…` repaint
  * the moment it happens; a latch cannot be missed the way a poll can.
  */
@@ -783,7 +780,7 @@ async function awaitBenchmark(page: Page, changed: boolean): Promise<void> {
       { timeout: 30_000 }
     );
   }
-  await expect(page.locator('#param-estimate')).toContainText('measured on this device', {
+  await expect(page.locator('#param-estimate')).toHaveText(/^[0-9]+\.[0-9]{2}s \(median of 3; one warm-up excluded\)$/, {
     timeout: 180_000,
   });
 }

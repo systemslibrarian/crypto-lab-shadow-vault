@@ -100,14 +100,17 @@ export function initParams(): void {
     }
 
     // Debounce benchmark
+    // Invalidate immediately, including the 500ms before the next run starts.
+    // A response for the previous sliders must not label the new parameters.
+    benchRunId++;
+    estimate.textContent = 'measuring…';
+    if (attackReadout) attackReadout.textContent = '';
     if (benchmarkTimeout) clearTimeout(benchmarkTimeout);
     benchmarkTimeout = setTimeout(runBenchmark, 500);
   }
 
   async function runBenchmark() {
-    // Run ONE real Argon2id derivation on this device and report the measured
-    // wall-clock time — no hard-coded formula. Then derive an honest attacker
-    // cost from that measurement.
+    // Warm up, then take the median of three isolated single derivations.
     const runId = ++benchRunId;
     estimate.textContent = 'measuring…';
     if (attackReadout) attackReadout.textContent = '';
@@ -127,7 +130,7 @@ export function initParams(): void {
     // A slower/faster later run may have superseded this one.
     if (runId !== benchRunId) return;
 
-    estimate.textContent = `${(msPerGuess / 1000).toFixed(2)}s (measured on this device)`;
+    estimate.textContent = `${(msPerGuess / 1000).toFixed(2)}s (median of 3; one warm-up excluded)`;
 
     if (attackReadout) {
       // Attacker cost = time per guess × number of guesses to exhaust the
@@ -139,7 +142,7 @@ export function initParams(): void {
       const guesses60 = Math.pow(2, 60 - 1);
       attackReadout.textContent = '';
       const intro = document.createTextNode(
-        'At this cost, one machine brute-forcing a passphrase would need about ',
+        'A hypothetical machine at this sampled cost, starting from scratch, would need about ',
       );
       const s40 = document.createElement('span');
       s40.className = 'text-vault-text font-mono';
@@ -149,7 +152,7 @@ export function initParams(): void {
       s60.className = 'text-vault-text font-mono';
       s60.textContent = humanizeSeconds(secPerGuess * guesses60);
       const end = document.createTextNode(
-        ' for 60 bits. Deniability holds only while BOTH passphrases sit on the far side of that wall — raise memory to push it further.',
+        ' for 60 bits. This is not a measured attacker throughput or a deniability guarantee. Each independently chosen passphrase protects its own slot.',
       );
       // The figures above model one machine exhausting a keyspace from scratch,
       // which badly understates a precomputing adversary: Shadow Vault's salt is
