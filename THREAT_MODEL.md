@@ -24,7 +24,9 @@ An adversary who obtains one passphrase can open its message and identify its **
 
 Argon2id with high memory parameters (default: 64 MB, 3 iterations, parallelism 4) makes per-guess cost significant. With a strong passphrase (80+ bits of entropy), brute-force is computationally infeasible.
 
-**Constraint:** Deniability collapses if *either* passphrase can be brute-forced. Both passphrases must be strong.
+**Independent-slot boundary:** Guessing one passphrase compromises its own message, configured role and offset; it does not automatically decrypt the other message or yield the other independently chosen key. The public two-slot format and nonoverlap rule can constrain possible positions without supplying the second key. Protecting both contents requires strong, independently generated passphrases for both slots. Correlated passwords can make separate guessing easier; cross-container reuse adds the deterministic key/nonce problems in §2.6. These cases are outside a claim of independent, unique passwords.
+
+The independent role-disclosure check in §1.2 also tries a bounded three-candidate dictionary, recovers only the decoy and opens the real message only with its separately supplied password. This is a concrete counterexample to automatic recovery of both messages, not proof of password entropy or resistance to all attacks.
 
 **Critical constraint — the salt is a global constant, so precomputation is shared across every container in the world.** See §2.9. The per-guess cost above is real, but an attacker pays it *once for the whole world*, not once per container. Read §1.3 as "brute-forcing a passphrase is expensive **the first time anyone does it**", not as "brute-forcing a passphrase is expensive **against this container**."
 

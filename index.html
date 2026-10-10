@@ -171,7 +171,7 @@
         </div>
       </div>
 
-      <p id="role-privacy-warning" class="text-sm text-vault-text bg-vault-surface border border-vault-border rounded-lg p-4 mb-6 leading-relaxed"><strong>Role privacy is not provided.</strong> A format-aware reader can classify a disclosed passphrase as real or decoy by trying the public role/counter domains and authenticating a slot. They do not need the other passphrase. This identifies the configured role, not the importance of its message, and does not recover the unopened plaintext. Hiding labels or equalizing derivation work in this UI does not prevent that offline test.</p>
+      <p id="role-privacy-warning" class="text-sm text-vault-text bg-vault-surface border border-vault-border rounded-lg p-4 mb-6 leading-relaxed"><strong>Role privacy is not provided.</strong> A format-aware reader can classify a disclosed passphrase as real or decoy by trying the public role/counter domains and authenticating a slot. They do not need the other passphrase. This identifies the configured role, not the importance of its message, and does not recover the unopened plaintext. Hiding labels or equalizing derivation work in this UI does not prevent that offline test. Guessing an independently chosen passphrase opens its own slot, not both messages. Recovering the other password is a separate attack; correlated or reused passwords add risks.</p>
 
       <!-- Tabs -->
       <nav class="flex gap-0 mb-6 border-b border-vault-border" role="tablist" aria-label="Vault operations">
@@ -468,12 +468,12 @@
             <li>Coercion with violence (rubber-hose cryptanalysis)</li>
             <li>Metadata outside the container (filenames, timestamps, access logs)</li>
             <li>Browser memory not being securely wiped (passphrases enter as JS strings)</li>
-            <li>Weak passphrases — deniability collapses if either passphrase can be brute-forced</li>
+            <li>Weak passphrases expose their own slots; correlated passwords can ease separate guessing, and reuse across containers adds key/nonce reuse risks</li>
           </ul>
         </section>
         <section>
           <h3 class="font-display text-lg font-semibold mb-2 text-vault-crimson">Honest Limitations</h3>
-          <p>Shadow Vault is a <strong>demonstration of deniable encryption concepts</strong>, not production-grade deniable storage. Browser-based cryptography is inherently weaker than native tools. Strong, unique passphrases are required for both messages — deniability depends on the attacker being unable to brute-force either one. For real-world deniable encryption, use <a href="https://veracrypt.fr" class="text-vault-crimson hover:text-vault-crimson-light underline" target="_blank" rel="noopener noreferrer">VeraCrypt</a> with hidden volumes.</p>
+          <p>Shadow Vault is a <strong>demonstration of deniable encryption concepts</strong>, not production-grade deniable storage. Browser-based cryptography is inherently weaker than native tools. Strong, unique, independently generated passphrases are required to protect both messages. Guessing one opens its own slot; this does not imply automatic recovery of the other independently protected message. For real-world deniable encryption, use <a href="https://veracrypt.fr" class="text-vault-crimson hover:text-vault-crimson-light underline" target="_blank" rel="noopener noreferrer">VeraCrypt</a> with hidden volumes.</p>
         </section>
         <section class="border-t border-vault-border pt-4">
           <h3 class="font-display text-base font-semibold mb-2">Related Projects</h3>

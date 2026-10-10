@@ -27,7 +27,7 @@ Several exhibits demonstrate the mechanics and their limits:
 ## What Can Go Wrong
 
 - Passphrase reuse across multiple containers can break deniability, because deterministic key/nonce/offset derivation enables cross-container analysis and two-time-pad style leakage.
-- Weak real or decoy passphrases collapse the model, because brute-forcing either passphrase can expose both slot locations and messages.
+- Guessing a passphrase exposes its own message, configured role and offset. It does not automatically yield the other independently chosen passphrase, key or plaintext. Knowing one slot and the nonoverlap rule can restrict possible positions for the other slot without decrypting it. Correlated passwords can make the second password easier to guess; reuse across containers adds the separate deterministic-key/nonce risks documented in the threat model.
 - JavaScript string handling is an implementation pitfall, because passphrases enter the app as immutable JS strings that cannot be securely zeroized like WASM buffers.
 - Unicode normalization mismatches can lock users out, because visually identical passphrases may encode to different UTF-8 byte sequences on different platforms.
 - A non-plausible decoy undermines coercion resistance, because deniable encryption relies on the revealed message being believable to an adversary.
@@ -51,7 +51,7 @@ npm run dev
 
 ## Independent Role-Disclosure Check
 
-With Node >=24.7, run `node verification/disclosed-role.mjs`. The shipped WASM creates a 4096-byte container at 16384 KiB / 2 iterations / 1 lane; Node's independent crypto implementation then receives only the container and one password and tests public role/counter candidates. The decoy-only attack, separate real-password control and wrong-password negative control are asserted. Unsupported Node versions fail explicitly rather than pretending the check passed. This is artifact behavior evidence, not source-to-binary provenance or a timing/security audit. Browser regression coverage exercises the actual coercion flow at desktop, 380px and 320px and keeps the role limit visible.
+With Node >=24.7, run `node verification/disclosed-role.mjs`. The shipped WASM creates a 4096-byte container at 16384 KiB / 2 iterations / 1 lane; Node's independent crypto implementation then receives only the container and one password and tests public role/counter candidates. The decoy-only attack, a bounded three-candidate dictionary recovering only the decoy, a separately supplied real-password control and a wrong-password negative control are asserted. The bounded dictionary is a counterexample to automatic two-message recovery, not an entropy or exhaustive password-search claim. Unsupported Node versions fail explicitly rather than pretending the check passed. This is artifact behavior evidence, not source-to-binary provenance or a timing/security audit. Browser regression coverage exercises the actual coercion flow at desktop, 380px and 320px and keeps the role limit visible.
 
 ## Related Demos
 

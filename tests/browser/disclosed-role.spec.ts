@@ -9,6 +9,8 @@ for (const width of [1280, 380, 320]) {
     await expect(page.locator('#self-test-status')).toContainText('self-test passed');
     await expect(page.locator('#role-privacy-warning')).toBeVisible();
     await expect(page.locator('#role-privacy-warning')).toContainText('classify a disclosed passphrase as real or decoy');
+    await expect(page.locator('#role-privacy-warning')).toContainText('opens its own slot, not both messages');
+    await expect(page.locator('#role-privacy-warning')).toContainText('correlated or reused');
     await page.click('#btn-toggle-params');
     for (const [id, value] of [['memory', '16'], ['iterations', '2'], ['parallelism', '1']]) {
       await page.locator('#param-' + id).fill(value);
