@@ -38,9 +38,9 @@ ChaCha20-Poly1305 AEAD with a fixed AAD (`shadow-vault:v1`) provides both confid
 
 ### 1.5 Format oracle attacks
 
-Wrong passphrases, corrupted containers, truncated files, and all other failure modes produce the same generic response: `{success: false}`. No error messages, timing differences, or side channels distinguish "wrong passphrase" from "corrupted data."
+An unsuccessful authenticated opening returns `{success: false}`; invalid parameters can instead raise errors, and file validation can report invalid sizes before opening. The decrypt UI uses a generic failure message for opening errors. This response policy does not establish equal timing, absence of side channels or role privacy.
 
-**Tested:** All error paths in `open_container` return the same `{success: false}` object.
+**Tested:** Wrong-key, corrupted-slot and invalid-data controls exercise failed openings; they do not prove every low-level error has the same response or timing.
 
 ---
 
@@ -67,8 +67,8 @@ Passphrases enter the system as JavaScript strings, which are:
 
 ### 2.3 Side-channel attacks
 
-- **Timing:** The `open_container` function always performs all 16 Argon2id derivations (2 roles × 8 collision counters) before checking AEAD matches. This makes the Argon2id phase constant-time for all inputs — success, failure, real passphrase, and decoy passphrase are timing-indistinguishable at the key derivation level. AEAD checks are microseconds and do not contribute measurable timing variation.
-- **JavaScript bridge:** WASM execution timing varies by browser, load, and GC pressure. Minor microsecond-level variations in the AEAD check phase cannot be fully eliminated but are masked by the dominant Argon2id cost (~1.5s per derivation with default parameters).
+- **Timing:** With accepted parameters, `open_container` attempts all 16 Argon2id derivations (2 roles × 8 collision counters) before checking AEAD matches. Fixed derivation count does not establish constant-time execution; invalid parameters return early and AEAD checks return on a successful decoded slot. No measured timing-indistinguishability guarantee is established.
+- **JavaScript bridge:** WASM execution timing varies by browser, load and GC pressure. Dominant Argon2id cost does not prove smaller variations are unobservable. Public role/counter authentication can classify a disclosed passphrase without a timing attack (§1.2).
 - **Power/EM:** Not applicable to a browser threat model.
 - **Cache timing:** WASM execution may leak information through cache timing, but exploiting this requires local access (which already breaks the model — see §2.1).
 
@@ -198,23 +198,22 @@ What follows from that:
 
 ## 4. Deniability Boundaries
 
-### What deniability provides
+### What this format demonstrates
 
-- The ability to reveal a *plausible* message while keeping the *real* message hidden
-- A container that is forensically indistinguishable from random data
-- No structural evidence that a second message exists
+- Two independently encrypted messages: disclosing one passphrase opens its own slot without supplying the other independently chosen key.
+- Random padding and no plaintext header. The four accepted file lengths and known two-slot format can identify the format; random-looking bytes do not establish forensic indistinguishability.
+- Public role/counter domains allow a format-aware reader to authenticate the disclosed slot's configured real/decoy role. The format provides no role privacy and always writes two slots.
 
-### What deniability requires
+### What protects unopened contents
 
-- **Both passphrases must be strong** — if either can be brute-forced, the adversary finds both messages
-- **The decoy message must be plausible** — a nonsensical decoy is suspicious
-- **The user must not reveal both passphrases** — once both are known, deniability is void
-- **The container must not be diffed against other versions** — see §2.6
+- **Strong, independently generated passphrases for both slots** — guessing one reveals that slot's message, role and offset, not both messages. Correlation can make guessing the other passphrase easier.
+- **Unique passphrases for each container** — cross-container reuse adds deterministic-key/nonce and comparison risks; see §2.6. Shared precomputation remains a separate limitation (§2.9).
+- **Keep the unopened slot's passphrase secret** — revealing both opens both. A plausible decoy does not hide its authenticated configured role.
 
-### What deniability does NOT provide
+### What this demonstration does NOT establish
 
-- Protection against a sophisticated adversary who already suspects dual messages
-- Proof of innocence — only plausible deniability
+- Deniability against a format-aware reader or privacy of the disclosed slot's configured role
+- Proof of innocence, forensic indistinguishability, or constant-time execution
 - Protection if the adversary has access to the device (keyloggers, screen capture, etc.)
 
 ---
