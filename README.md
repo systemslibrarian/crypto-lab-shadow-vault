@@ -2,7 +2,7 @@
 
 ## What It Is
 
-Shadow Vault is a browser demonstration of deniable encryption that combines Argon2id key derivation, ChaCha20-Poly1305 AEAD encryption, and SHA-256 domain separation in a fixed-size random container. It demonstrates revealing one decryptable message while keeping a second slot's location and contents hidden in the same blob. A format-aware adversary knows the tool always writes two slots. The cryptographic core is symmetric encryption with password-based key derivation, executed in Rust/WASM through a Web Worker. It is not asymmetric, threshold, or zero-knowledge cryptography, and it is not positioned as production deniable storage.
+Shadow Vault is a browser demonstration of deniable encryption that combines Argon2id key derivation, ChaCha20-Poly1305 AEAD encryption, and SHA-256 domain separation in a fixed-size random container. It demonstrates two independently encrypted slots in the same blob. A format-aware reader knows two slots are written and can classify a disclosed passphrase as the configured real or decoy role by authenticating the public role/counter candidates. This requires no knowledge of the other passphrase, but does not recover the unopened plaintext or establish the meaning or importance of either message. It provides no role privacy; hiding labels in the UI does not change this. The cryptographic core is symmetric encryption with password-based key derivation, executed in Rust/WASM through a Web Worker. It is not asymmetric, threshold, or zero-knowledge cryptography, and it is not positioned as production deniable storage.
 
 ## When to Use It
 
@@ -17,12 +17,12 @@ Shadow Vault is a browser demonstration of deniable encryption that combines Arg
 
 The demo lets you encrypt and decrypt containers end-to-end in the browser. In encrypt mode, you enter real and decoy passphrases/messages, choose container size (4/8/16/32 KB), and tune Argon2id parameters (memory, iterations, parallelism). In decrypt mode, you upload a vault file, select the Argon2id settings used at creation (the headerless file cannot store them), and try a passphrase to open whichever message that passphrase maps to.
 
-Several exhibits make the abstract guarantee tangible rather than merely asserted:
+Several exhibits demonstrate the mechanics and their limits:
 
 1. **Animated container lifecycle** — on encrypt, the container map paints all 512 cells as flickering random noise, animates the real and decoy slots writing in at their passphrase-derived offsets, then dissolves the slot colours back into noise-grey. A **"What an attacker sees"** toggle removes the legend so the map becomes uniform random cells, letting you compare the insider view against the adversary's view of the same bytes.
-2. **Coercion-scenario walkthrough** — after creating a vault, one click re-decrypts the same container with the decoy passphrase (the plausible message an adversary can force out) and then the real passphrase, side by side, through the real Rust/WASM open path — demonstrating that the decoy decryption reveals nothing about the second message.
+2. **Coercion-scenario walkthrough** — after creating a vault, one click re-decrypts the same container with the decoy passphrase (the plausible message an adversary can force out) and then the real passphrase, side by side, through the real Rust/WASM open path — showing that the disclosed password authenticates its decoy role while the second opening uses a separately supplied real password. It does not establish deniability against a format-aware adversary.
 3. **Measured Argon2id cost** — the parameter panel runs a real derivation on this device and reports the measured wall-clock time (no hard-coded estimate), paired with a live attacker-cost readout showing how brute-forcing a 40-bit vs 60-bit passphrase scales as you raise the memory cost.
-4. **Deliberate redaction** — the decrypt view shows the recovered slot offset as a filled bar with the number withheld, and returns an identical failure message for wrong passphrases and errors alike, so the interface itself refuses to reveal what the format is designed to hide.
+4. **Deliberate redaction** — the decrypt view shows the recovered slot offset as a filled bar with the number withheld, and returns an identical failure message for wrong passphrases and errors alike, as a presentation choice. The bar intentionally reveals approximate position, and an offline reader can authenticate a disclosed password's configured role regardless of UI redaction.
 
 ## What Can Go Wrong
 
@@ -48,6 +48,10 @@ cd crypto-lab-shadow-vault
 npm install
 npm run dev
 ```
+
+## Independent Role-Disclosure Check
+
+With Node >=24.7, run `node verification/disclosed-role.mjs`. The shipped WASM creates a 4096-byte container at 16384 KiB / 2 iterations / 1 lane; Node's independent crypto implementation then receives only the container and one password and tests public role/counter candidates. The decoy-only attack, separate real-password control and wrong-password negative control are asserted. Unsupported Node versions fail explicitly rather than pretending the check passed. This is artifact behavior evidence, not source-to-binary provenance or a timing/security audit. Browser regression coverage exercises the actual coercion flow at desktop, 380px and 320px and keeps the role limit visible.
 
 ## Related Demos
 
