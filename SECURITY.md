@@ -2,6 +2,29 @@
 
 This checklist is for auditors, reviewers, and contributors evaluating the security posture of Shadow Vault. Each item references the relevant source file and test.
 
+The Rust supply-chain gate runs `cargo deny --locked check advisories licenses`
+against the full dependency graph with workflow-pinned cargo-deny 0.20.2. Install
+this tool with `cargo +stable install cargo-deny@0.20.2 --locked` (tool MSRV 1.88),
+independently of the application compiler. The former 0.18.3 checker rejected the
+legacy `unmaintained = "warn"` setting; after correcting that setting it still
+could not parse CVSS 4 records in the current RustSec database. Both failures
+were hidden by `continue-on-error`. The gate now blocks on checker, provider or
+policy failures; unreadable evidence cannot be treated as a successful audit.
+
+The existing license allowlist is preserved. The crate declares the repository's
+existing MIT license. Unlicensed and disallowed copyleft crates remain rejected;
+unmaintained and unsound advisories cover all dependencies. No advisory ignores,
+target filters, exclusions or dependency downgrades were added. Ordinary unused
+license-allowance warnings remain visible.
+
+Run the real-tool offline controls with
+`python3 -B -m unittest discover -s verification -p 'test_supply_chain_policy.py' -v`.
+They check an allowed MIT crate, rejected unlicensed/GPL crates, the historical
+invalid configuration and missing advisory-provider evidence, without building
+or installing fixture dependencies.
+Successful policy checks establish dependency/license evidence, not constant-time
+behavior or reproducible source-to-WASM provenance.
+
 ---
 
 ## 1. Cryptographic Correctness
