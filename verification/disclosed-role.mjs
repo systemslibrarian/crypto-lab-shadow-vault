@@ -39,9 +39,17 @@ assert.equal(disclosed.length, 1);
 assert.equal(disclosed[0].role, 'decoy');
 assert.equal(disclosed[0].message, 'decoy message');
 assert.ok(!disclosed.some(match => match.message === 'secret message'));
+// A bounded guess list recovers only the decoy. This is a counterexample to
+// automatic recovery of both messages, not proof of real-password entropy.
+const dictionary = ['wrong-guess-one', 'wrong-guess-two', 'weak-decoy-demo'];
+const dictionaryMatches = dictionary.flatMap(password => classify(container, password));
+assert.equal(dictionaryMatches.length, 1);
+assert.equal(dictionaryMatches[0].role, 'decoy');
+assert.equal(dictionaryMatches[0].message, 'decoy message');
+assert.ok(!dictionaryMatches.some(match => match.message === 'secret message'));
 const realControl = classify(container, 'strong-real-demo');
 assert.equal(realControl.length, 1);
 assert.equal(realControl[0].role, 'real');
 assert.equal(realControl[0].message, 'secret message');
 assert.deepEqual(classify(container, 'unrelated-wrong-password'), []);
-console.log(JSON.stringify({ wasmSha256: crypto.createHash('sha256').update(readFileSync(new URL('../public/shadow_vault_crypto_bg.wasm', import.meta.url))).digest('hex'), containerSha256: crypto.createHash('sha256').update(container).digest('hex'), parameters: { memoryKiB: 16384, iterations: 2, lanes: 1 }, disclosed, realControl, wrongPasswordMatches: 0, attackInputs: 'container plus disclosed password; real-password control is separate' }, null, 2));
+console.log(JSON.stringify({ wasmSha256: crypto.createHash('sha256').update(readFileSync(new URL('../public/shadow_vault_crypto_bg.wasm', import.meta.url))).digest('hex'), containerSha256: crypto.createHash('sha256').update(container).digest('hex'), parameters: { memoryKiB: 16384, iterations: 2, lanes: 1 }, disclosed, dictionaryCandidateCount: dictionary.length, dictionaryMatches, realControl, wrongPasswordMatches: 0, attackInputs: 'container plus disclosed password; real-password control is separate' }, null, 2));
