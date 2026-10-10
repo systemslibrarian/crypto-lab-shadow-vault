@@ -68,6 +68,7 @@ for (const width of [1280, 380, 320]) {
 test('warmup is excluded and repeated sample median is used', async ({ page }) => {
   await observeWorker(page, 'median');
   await page.goto('.');
+  await expect(page.locator('#self-test-status')).toContainText('self-test passed');
   await page.click('#btn-toggle-params');
   await expect(page.locator('#param-estimate')).toHaveText('0.02s (median of 3; one warm-up excluded)');
   expect(await page.evaluate(() => (window as any).__benchmarkCalls.length)).toBe(4);
@@ -76,6 +77,7 @@ test('warmup is excluded and repeated sample median is used', async ({ page }) =
 test('an old response cannot label new parameters during the debounce window', async ({ page }) => {
   await observeWorker(page, 'delayed-final');
   await page.goto('.');
+  await expect(page.locator('#self-test-status')).toContainText('self-test passed');
   await page.click('#btn-toggle-params');
   await page.waitForFunction(() => typeof (window as any).__releaseBenchmark === 'function');
   const beforeNextRun = await page.evaluate(async () => {
@@ -101,6 +103,7 @@ for (const mode of ['partial', 'nonfinite', 'zero', 'wrong-parameters', 'extra-d
   test(`invalid ${mode} benchmark evidence cannot produce a cost claim`, async ({ page }) => {
     await observeWorker(page, mode);
     await page.goto('.');
+    await expect(page.locator('#self-test-status')).toContainText('self-test passed');
     await page.click('#btn-toggle-params');
     await expect(page.locator('#param-estimate')).toHaveText('measurement unavailable');
     await expect(page.locator('#param-attacker-cost')).toHaveText('');
@@ -108,3 +111,19 @@ for (const mode of ['partial', 'nonfinite', 'zero', 'wrong-parameters', 'extra-d
     expect(await page.evaluate(() => (window as any).__benchmarkCalls.length)).toBe(1);
   });
 }
+
+test('controlled samples wait for real initialization on a slow WASM connection', async ({ page }) => {
+  await observeWorker(page, 'median');
+  let delayedLoads = 0;
+  await page.context().route('**/shadow_vault_crypto_bg.wasm', async route => {
+    delayedLoads++;
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    await route.continue();
+  });
+  await page.goto('.');
+  await expect(page.locator('#self-test-status')).toContainText('self-test passed');
+  expect(delayedLoads).toBe(1);
+  await page.click('#btn-toggle-params');
+  await expect(page.locator('#param-estimate')).toHaveText('0.02s (median of 3; one warm-up excluded)');
+  expect(await page.evaluate(() => (window as any).__benchmarkCalls.length)).toBe(4);
+});
