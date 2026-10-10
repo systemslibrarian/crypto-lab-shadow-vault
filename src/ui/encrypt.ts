@@ -306,7 +306,7 @@ export function initEncrypt(): void {
 
   // ─── Coercion-scenario demo ────────────────────────────────────────────
   // Re-decrypts the just-created container with BOTH passphrases through the
-  // real WASM open path — no fabricated output — and narrates the guarantee.
+  // real WASM open path — no fabricated output — and narrates its limits.
 
   function coercionPanel(
     accent: 'crimson' | 'amber',
@@ -349,7 +349,7 @@ export function initEncrypt(): void {
         coercionPanel(
           'amber',
           '1 · Adversary forces out the DECOY passphrase',
-          'They decrypt and recover a complete, plausible message. As far as they can tell, this is the whole vault.',
+          'They recover this message. Public role domains also identify the authenticated decoy role; this is not proof that the vault contains only one message.',
           decoyResult.success && decoyResult.message !== undefined
             ? decoyResult.message
             : '(decryption failed)',
@@ -359,7 +359,7 @@ export function initEncrypt(): void {
       const note1 = document.createElement('p');
       note1.className = 'text-xs text-vault-crimson font-semibold';
       note1.textContent =
-        'This passphrase proves one message is readable. A format-aware adversary already knows Shadow Vault writes two slots, but cannot identify or read the other slot from this decryption.';
+        'An offline reader can authenticate this passphrase specifically under the decoy role without the real passphrase. The UI hiding that label does not provide role privacy or recover the unopened plaintext.';
       coercionSteps.appendChild(note1);
 
       // You still hold the real passphrase.
@@ -378,7 +378,7 @@ export function initEncrypt(): void {
       const note2 = document.createElement('p');
       note2.className = 'text-sm text-vault-text font-semibold pt-1';
       note2.textContent =
-        'The decoy decryption did not reveal this second message\'s content or offset. A format-aware adversary knows a second slot exists, but still lacks its passphrase and opening.';
+        'This second opening used the separate real passphrase as a control. The disclosed decoy identifies its configured role, but does not itself recover the other independently chosen passphrase or plaintext.';
       coercionSteps.appendChild(note2);
     } finally {
       // The demo has served its purpose — wipe the retained copy + passphrases.

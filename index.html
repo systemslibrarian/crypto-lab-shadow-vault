@@ -15,7 +15,7 @@
     </script>
     <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Deniable encryption — two messages, one container, no trace." />
+    <meta name="description" content="Two independently encrypted slots with public role domains — a deniability teaching demo, not role-private storage." />
     <title>Shadow Vault — Deniable Encryption</title>
     <!-- Fonts are self-hosted (bundled via @fontsource in src/main.ts) — no third-party requests. -->
   </head>
@@ -161,7 +161,7 @@
           </div>
           <aside class="cl-hero-why" aria-label="Why it matters">
             <span class="cl-hero-why-label">WHY IT MATTERS</span>
-            <p class="cl-hero-why-text">Ordinary encryption proves a secret exists, so an adversary keeps pressing until you surrender the key. Deniability lets you yield the decoy under coercion while the real message stays statistically invisible in noise.</p>
+            <p class="cl-hero-why-text">Two encrypted messages can share one container, but this format does not hide which configured role a disclosed passphrase opens. Explore confidentiality and the limits of deniability under coercion.</p>
           </aside>
         </header>
         <div class="text-center mb-6 sm:mb-8">
@@ -170,6 +170,8 @@
           </button>
         </div>
       </div>
+
+      <p id="role-privacy-warning" class="text-sm text-vault-text bg-vault-surface border border-vault-border rounded-lg p-4 mb-6 leading-relaxed"><strong>Role privacy is not provided.</strong> A format-aware reader can classify a disclosed passphrase as real or decoy by trying the public role/counter domains and authenticating a slot. They do not need the other passphrase. This identifies the configured role, not the importance of its message, and does not recover the unopened plaintext. Hiding labels or equalizing derivation work in this UI does not prevent that offline test.</p>
 
       <!-- Tabs -->
       <nav class="flex gap-0 mb-6 border-b border-vault-border" role="tablist" aria-label="Vault operations">
@@ -317,7 +319,7 @@
           <!-- Coercion Scenario Demo -->
           <div id="coercion-section" class="hidden mb-6 bg-vault-surface border border-vault-border rounded-lg p-5">
             <h3 class="text-xs text-vault-text-dim mb-2">THE COERCION SCENARIO</h3>
-            <p class="text-xs text-vault-text-muted mb-3">Deniability is a <em>scenario</em>, not a byte layout. Play it out: an adversary forces the decoy passphrase out of you, decrypts, and gets a plausible message — and no way to <em>read</em> a second one, or to prove from the bytes alone that one was ever written. The limit is that this tool always fills two slots, so an adversary who recognises the format knows a second slot is there; deniability then rests on them not tying the container to this tool.</p>
+            <p class="text-xs text-vault-text-muted mb-3">Play it out: the disclosed decoy passphrase opens one message. A format-aware reader can also identify its authenticated decoy role using the public derivation domains, without the other passphrase. This demo provides no role privacy. The second opening below is a separate control using the real passphrase; it is not information obtained by the adversary.</p>
             <div class="text-center">
               <button id="btn-coercion-demo" type="button" class="border border-vault-crimson text-vault-crimson hover:bg-vault-crimson hover:text-white px-6 py-3 rounded transition-colors duration-300 min-h-[44px] font-semibold">
                 ▶ PLAY OUT THE COERCION SCENARIO
@@ -441,12 +443,12 @@
       <div class="p-5 space-y-6 text-sm leading-relaxed" style="line-height:1.7">
         <section>
           <h3 class="font-display text-lg font-semibold mb-2 text-vault-crimson">The Deniability Problem</h3>
-          <p>Standard encryption proves a message exists. Under coercion, possessing an encrypted file is itself incriminating. An adversary who compels you to surrender your passphrase gains the message — and knows there's nothing else to find.</p>
-          <p class="mt-2">Deniable encryption solves this: one container holds two independent encrypted messages at different offsets. You reveal the decoy passphrase. The adversary gets a plausible message. The real message stays unreadable and unprovable — the rest of the container is indistinguishable from random padding, so nothing in the bytes marks a second message as present. One honest caveat: Shadow Vault always writes exactly two slots and requires both passphrases, so an adversary who <em>recognises the format</em> knows a second slot exists. They still cannot read it, or prove it holds anything rather than padding, without the second passphrase. Against a format-aware adversary the deniability is about contents, not existence.</p>
+          <p>Coercion can reveal a passphrase and its encrypted message. A two-slot container can be used to present a plausible decoy, but that scenario does not itself establish what a format-aware adversary can learn.</p>
+          <p class="mt-2">Shadow Vault puts two independently encrypted messages at different offsets. It does not provide role privacy: a format-aware adversary can classify the disclosed role by trying the public real/decoy derivation domains and counters and checking which candidate authenticates. Revealing the decoy passphrase therefore discloses its configured decoy label. This does not recover the unopened plaintext or prove the meaning or importance of either message. A stronger deniability guarantee would require a reviewed format/design change; concealing UI labels cannot supply it.</p>
         </section>
         <section>
           <h3 class="font-display text-lg font-semibold mb-2 text-vault-crimson">The Two-Passphrase Model</h3>
-          <p>Each passphrase independently derives an encryption key, a nonce, and a slot offset via Argon2id. The real passphrase decrypts the real message. The decoy passphrase decrypts the decoy. A format-aware adversary knows the tool writes two slots, but without both passphrases cannot identify their contents or distinguish the unopened ciphertext from random padding.</p>
+          <p>Each passphrase and public role/counter domain derive a key, nonce and offset through Argon2id. Authentication identifies the configured real or decoy role for that passphrase. Opening one role does not provide the other independently chosen passphrase or its plaintext. Equal derivation work and generic failure messages do not conceal the successful role from an offline reader.</p>
         </section>
         <section>
           <h3 class="font-display text-lg font-semibold mb-2 text-vault-crimson">Why Argon2id Is Load-Bearing</h3>

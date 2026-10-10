@@ -14,9 +14,11 @@ An adversary who obtains the container sees one of four accepted fixed-size byte
 
 ### 1.2 Single-passphrase coercion
 
-An adversary who compels the user to reveal one passphrase decrypts one message. The remaining bytes — including the other encrypted slot — are indistinguishable from the CSPRNG padding that fills the rest of the container. A format-aware adversary already knows Shadow Vault writes two slots; without the second passphrase they cannot identify the other slot's offset or contents from the decoy opening.
+An adversary who obtains one passphrase can open its message and identify its **configured real/decoy role**. The salts are SHA-256 of public role strings and collision counters; a format-aware reader can try both roles and all eight counters and see which candidate authenticates. The other passphrase is not an input to this test.
 
-**Constraint:** This only works if the revealed passphrase is the decoy. If the adversary already knows both passphrases, deniability is void.
+**No role-privacy guarantee:** UI redaction, generic failure messages and equal Argon2id work do not prevent independent offline classification of a successful opening. A role label does not prove a message's semantic importance. This test does not recover the unopened plaintext or its independently chosen passphrase. The known format also always writes two slots. A stronger deniability claim requires a reviewed format/design change, not an interface assurance.
+
+**Repeatable independent check:** `node verification/disclosed-role.mjs` (Node >=24.7) creates a container through the shipped WASM, then classifies each supplied passphrase with Node's independent Argon2id and ChaCha20-Poly1305. It includes a separate real-password control and a wrong-password negative control. This verifies observable artifact behavior, not source-to-WASM reproducibility, constant-time execution or production security.
 
 ### 1.3 Offline brute-force (weak passphrases)
 
@@ -84,7 +86,7 @@ The container itself has no metadata, but the surrounding context does:
 
 Physical coercion cannot be solved with cryptography. If an adversary uses violence, deniable encryption provides limited protection — the adversary can demand *all* passphrases and threaten consequences for noncompliance.
 
-Deniability helps only if the adversary *believes* the decoy passphrase is the only passphrase.
+In this format, a format-aware adversary can authenticate the disclosed decoy role and already knows two slots are written. A plausible decoy story is not a cryptographic guarantee that they believe it is the only message.
 
 ### 2.6 Multi-container analysis (deterministic offsets)
 
