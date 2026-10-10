@@ -160,15 +160,18 @@ This checklist is for auditors, reviewers, and contributors evaluating the secur
 
 ---
 
-## 7. Deniability Guarantees
+## 7. Format and Disclosure Boundaries
 
-- [ ] **Container is indistinguishable from random data**
-  - No magic bytes, no fixed offsets, no length fields
-  - Full CSPRNG fill before slot writes
+- [ ] **Headerless construction is separated from forensic claims**
+  - No plaintext magic/header bytes; message lengths are encrypted inside slots
+  - Full CSPRNG fill before slot writes does not prove indistinguishability
+  - Four accepted file sizes and the known two-slot format can identify the format
 
 - [ ] **Single passphrase reveals exactly one message**
   - Each passphrase independently derives its own key/nonce/offset
-  - No metadata connects the two slots
+  - Public role/counter domains authenticate its configured role; UI redaction does not hide it
+  - Guessing one independently chosen passphrase does not supply the other key
+  - Repeatable independent control: `node verification/disclosed-role.mjs`; bounded counterexamples, not entropy or full security proofs
 
 - [ ] **Identical passphrases are rejected**
   - UI validation prevents creating a container with identical passphrases

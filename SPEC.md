@@ -13,8 +13,8 @@ This document is the authoritative definition of the Shadow Vault container form
 
 A Shadow Vault container stores two independently encrypted messages (designated *real* and *decoy*) in a single fixed-size binary blob. The container is designed to be:
 
-- **Headerless:** No magic bytes, version fields, length prefixes, or structural markers.
-- **Deniable:** Revealing one passphrase decrypts one message. The remaining bytes are indistinguishable from CSPRNG output.
+- **Headerless:** No plaintext magic bytes, version fields or message-length prefixes. A four-byte length is stored inside each encrypted slot; the four accepted file sizes can identify the format.
+- **Independent slots:** Revealing one passphrase decrypts its own message and authenticates its configured real/decoy role through public salt domains. It does not supply the other independently chosen key. The known format always writes two slots and provides no role-privacy guarantee.
 - **Integrity-verified:** ChaCha20-Poly1305 AEAD ensures that any modification to ciphertext or tag is detected.
 
 ---
@@ -54,7 +54,7 @@ No other sizes are valid. Implementations MUST reject containers whose length is
 
 ### 2.3 Random Fill Guarantee
 
-After step 2, every byte of the container is CSPRNG output. Steps 8 and 11 overwrite specific ranges with AEAD ciphertext + tag. All remaining bytes retain their original random values. This ensures the container is indistinguishable from random data.
+After step 2, every byte of the container is CSPRNG output. Steps 8 and 11 overwrite specific ranges with AEAD ciphertext + tag. All remaining bytes retain their original random values. This describes construction, not a proof of forensic indistinguishability: accepted file lengths, the known two-slot format, authenticated role classification and cross-container reuse remain observable boundaries (THREAT_MODEL.md §§1.1–1.3, 2.6, 4).
 
 ---
 
@@ -351,17 +351,17 @@ A wrong passphrase MUST NOT produce any plaintext bytes. AEAD authentication eit
 
 **Test coverage:** `aead_wrong_key_fails`, `aead_wrong_nonce_fails`, `aead_corrupted_ciphertext_fails`, `aead_corrupted_tag_fails`, `container_wrong_passphrase_returns_none`.
 
-### INV-2: Indistinguishable failure
+### INV-2: Failed authenticated opening
 
-Wrong passphrase, corrupted container, truncated input, and invalid encoding MUST all produce identical `{success: false}` responses with no distinguishing metadata.
+Unsuccessful authenticated openings return `{success: false}` without plaintext. Invalid parameters can raise low-level errors, and the UI separately validates file sizes. Generic opening failures do not establish timing indistinguishability or adversarial role privacy (THREAT_MODEL.md §§1.2, 1.5, 2.3).
 
 **Test coverage:** `single_bit_flip_detected`, `tag_bit_flip_detected`, `truncated_container_rejected`, `all_zeros_container_no_match`, `all_ones_container_no_match`, `many_passphrases_no_false_positive`.
 
 ### INV-3: No structural markers
 
-The container MUST have no headers, magic bytes, version fields, or any byte pattern that distinguishes it from uniformly random data.
+The container MUST have no plaintext headers, magic bytes or version fields. This is a serialization requirement, not a guarantee that its file length, known two-slot structure or authenticated role domains are indistinguishable from arbitrary random data.
 
-**Test coverage:** `independent_containers_differ`, `container_is_full_size`.
+**Test coverage:** `independent_containers_differ`, `container_is_full_size` check independent output and accepted lengths; they do not prove forensic indistinguishability or role privacy. `node verification/disclosed-role.mjs` separately demonstrates the role/independent-password boundary with the actual bundled WASM and an independent crypto implementation.
 
 ### INV-4: Slot isolation
 
