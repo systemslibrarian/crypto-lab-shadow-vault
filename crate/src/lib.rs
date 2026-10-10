@@ -143,16 +143,19 @@ fn benchmark_single_derivation(
 ) -> Result<(), String> {
     validate_argon2_params(memory_kib, iterations, parallelism)?;
     // Exactly one ordinary role/counter derivation. No container, RNG, AEAD,
-    // offset calculation or collision retry. Drop zeroizes the material.
+    // offset calculation or collision retry. The benchmark-only black_box
+    // barriers discourage optimizing away a fixed input or discarded output;
+    // they are best-effort compiler hints, not constant-time guarantees.
+    // Drop zeroizes the material.
     derive_key_material(
-        "shadow-vault-benchmark-sample",
-        "real",
+        std::hint::black_box("shadow-vault-benchmark-sample"),
+        std::hint::black_box("real"),
         memory_kib,
         iterations,
         parallelism,
         0,
     )
-    .map(drop)
+    .map(|material| drop(std::hint::black_box(material)))
 }
 
 #[wasm_bindgen]
