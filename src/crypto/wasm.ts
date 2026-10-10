@@ -162,40 +162,33 @@ export function getMaxMessageLength(containerSize: number): number {
 }
 
 /**
- * Measure REAL Argon2id wall-clock cost for the given parameters.
- *
- * There is no faked formula here: this runs an actual `create_container`
- * (which performs two real Argon2id derivations at cc=0, plus a trivial AEAD)
- * on throwaway sample passphrases in the WASM worker, times it end-to-end, and
- * returns the measured per-passphrase cost (total / 2). The messages are empty
- * and the container is the smallest valid size so the measurement reflects the
- * KDF, not the payload.
- *
- * Returns milliseconds per single passphrase derivation, measured on THIS
- * device — the number an attacker pays per brute-force guess.
+ * Median Worker-clock time for one role/counter Argon2id derivation.
+ * One warm-up is excluded, then three samples are collected. No container
+ * creation, AEAD, RNG, collision retry or main-thread/Worker queue time.
+ * Includes the normal derivation's salt hashing and material zeroization.
+ * This device's sample is not a measured attacker throughput or security proof.
  */
 export async function benchmarkArgon2(
   memoryKib: number,
   iterations: number,
   parallelism: number,
 ): Promise<number> {
-  const SAMPLE_SIZE = 4096;
-  const t0 = performance.now();
-  await callWorker('create_container', {
-    realMessage: '',
-    decoyMessage: '',
-    // Distinct throwaway passphrases — never leave this call.
-    realPassphrase: 'shadow-vault-benchmark-sample-real',
-    decoyPassphrase: 'shadow-vault-benchmark-sample-decoy',
-    containerSize: SAMPLE_SIZE,
-    memoryKib,
-    iterations,
-    parallelism,
-  });
-  const elapsed = performance.now() - t0;
-  // create_container runs two Argon2id derivations (real + decoy, cc=0) in the
-  // no-collision path; report per-passphrase cost.
-  return elapsed / 2;
+  async function sample(): Promise<number> {
+    const value = await callWorker('benchmark_argon2', { memoryKib, iterations, parallelism });
+    if (!value || typeof value !== 'object') throw new Error('Incomplete benchmark evidence');
+    const result = value as Record<string, unknown>;
+    if (result.memoryKib !== memoryKib || result.iterations !== iterations ||
+        result.parallelism !== parallelism || result.derivations !== 1 ||
+        typeof result.derivationMs !== 'number' || !Number.isFinite(result.derivationMs) ||
+        result.derivationMs <= 0) {
+      throw new Error('Invalid or mismatched single-derivation evidence');
+    }
+    return result.derivationMs;
+  }
+  await sample(); // Warm-up: validate but exclude from the reported measure.
+  const samples = [await sample(), await sample(), await sample()];
+  samples.sort((a, b) => a - b);
+  return samples[1];
 }
 
 // ─── Container file I/O (stays in JS — no crypto) ───────────────────────

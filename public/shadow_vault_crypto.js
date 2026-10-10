@@ -1,6 +1,29 @@
 /* @ts-self-types="./shadow_vault_crypto.d.ts" */
 
 /**
+ * Run one passphrase derivation; timing is measured in the Worker.
+ *
+ * # Errors
+ * Returns an error if parameters are invalid or derivation fails.
+ * @param {number} memory_kib
+ * @param {number} iterations
+ * @param {number} parallelism
+ */
+export function benchmark_argon2(memory_kib, iterations, parallelism) {
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        wasm.benchmark_argon2(retptr, memory_kib, iterations, parallelism);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        if (r1) {
+            throw takeObject(r0);
+        }
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+    }
+}
+
+/**
  * # Errors
  * Returns an error if parameters are invalid, messages are too long, or encryption fails.
  * @param {string} real_message

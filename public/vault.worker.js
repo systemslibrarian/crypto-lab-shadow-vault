@@ -12,6 +12,7 @@ import init, {
   open_container,
   self_test,
   get_max_message_length,
+  benchmark_argon2,
 } from './shadow_vault_crypto.js';
 
 let initialized = false;
@@ -66,6 +67,18 @@ self.onmessage = (e) => {
     try {
       let result;
       switch (command) {
+        case 'benchmark_argon2': {
+          const started = performance.now();
+          benchmark_argon2(args.memoryKib, args.iterations, args.parallelism);
+          result = {
+            derivationMs: performance.now() - started,
+            derivations: 1,
+            memoryKib: args.memoryKib,
+            iterations: args.iterations,
+            parallelism: args.parallelism,
+          };
+          break;
+        }
         case 'create_container':
           result = create_container(
             args.realMessage,
