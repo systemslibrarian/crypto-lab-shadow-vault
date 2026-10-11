@@ -3,7 +3,9 @@
 `npm run wasm` now calls `python3 scripts/reproduce-wasm.py` before the existing
 copy helper. Python 3.12+, the repository-selected Rust 1.87.0 toolchain and its
 wasm32 target are required. The gate supports macOS arm64 and Linux x86_64;
-other hosts fail explicitly.
+other hosts fail explicitly. The gate requires rustup, ensures the exact selected
+toolchain/target is available, and resolves its actual rustc and Cargo executable
+paths; an unrelated system compiler earlier on PATH cannot substitute for them.
 
 The gate copies immutable Git blobs at the actual HEAD into scratch, refuses
 uncommitted Rust inputs, hashes every captured crate file and the toolchain

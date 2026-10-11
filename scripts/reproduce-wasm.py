@@ -205,12 +205,25 @@ def main():
                                       binarySha256=digest(binary.read_bytes())))
             env['PATH'] = os.pathsep.join(str(binaries[name].parent) for name in ('wasm-pack', 'wasm-bindgen')) + os.pathsep + env['PATH']
             report['tools'] = tool_rows
-            compiler = run(['rustc', '-vV'], source, env)
+            rustup = shutil.which('rustup', path=env['PATH'])
+            if not rustup and env.get('HOME'):
+                candidate = pathlib.Path(env['HOME']) / '.cargo/bin/rustup'
+                if candidate.is_file():
+                    rustup = str(candidate)
+            if not rustup:
+                raise RuntimeError('rustup is required; refusing an unrelated system compiler')
+            run([rustup, 'toolchain', 'install', '1.87.0', '--profile', 'minimal',
+                 '--target', 'wasm32-unknown-unknown', '--no-self-update'], source, env)
+            compiler_path = run([rustup, 'which', 'rustc', '--toolchain', '1.87.0'], source, env)
+            cargo_path = run([rustup, 'which', 'cargo', '--toolchain', '1.87.0'], source, env)
+            env['PATH'] = str(pathlib.Path(cargo_path).parent) + os.pathsep + env['PATH']
+            env['RUSTC'] = compiler_path
+            compiler = run([compiler_path, '-vV'], source, env)
             validate_compiler(compiler)
-            compiler_path = run(['rustup', 'which', 'rustc', '--toolchain', '1.87.0'], source, env)
             report['compiler'] = dict(identity=compiler, path=compiler_path,
                                       executableSha256=digest(pathlib.Path(compiler_path).read_bytes()))
-            report['cargo'] = run(['cargo', '-V'], source, env)
+            report['cargo'] = dict(identity=run([cargo_path, '-V'], source, env), path=cargo_path,
+                                  executableSha256=digest(pathlib.Path(cargo_path).read_bytes()))
             report['buildFlags'] = dict(rustflags=env['RUSTFLAGS'], target='wasm32-unknown-unknown',
                                         profile='release', locked=True, offlineBuild=True, installMode='no-install')
             run(['cargo', 'fetch', '--locked', '--manifest-path', 'crate/Cargo.toml'], source, env)
