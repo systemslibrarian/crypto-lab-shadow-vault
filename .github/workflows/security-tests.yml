@@ -51,11 +51,14 @@ jobs:
 
       # Check for known-vulnerable dependencies
       - name: Install cargo-deny
-        run: cargo install cargo-deny@0.18.3 --locked
+        # The old checker cannot parse current CVSS 4 advisory records.
+        # Install tooling with stable (MSRV 1.88+) independently of app pins.
+        run: cargo +stable install cargo-deny@0.20.2 --locked
+      - name: Supply-chain checker positive and negative controls
+        run: python3 -B -m unittest discover -s verification -p 'test_supply_chain_policy.py' -v
       - name: Cargo deny (advisories + licenses)
-        run: cargo deny check advisories licenses
+        run: cargo deny --locked check advisories licenses
         working-directory: crate
-        continue-on-error: true  # advisory DB may lag
 
       # WASM build verification
       - name: Install wasm-pack

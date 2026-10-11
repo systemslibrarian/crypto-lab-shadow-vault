@@ -4,13 +4,15 @@
 [advisories]
 db-path = "~/.cargo/advisory-db"
 db-urls = ["https://github.com/rustsec/advisory-db"]
-vulnerability = "deny"
-unmaintained = "warn"
+# cargo-deny 0.20 always rejects vulnerability/notice advisories.
+# Scope every dependency for unmaintained advisories; do not ignore them.
+unmaintained = "all"
+unsound = "all"
 yanked = "warn"
-notice = "warn"
 
 [licenses]
-unlicensed = "deny"
+# The explicit allow list rejects unknown/unlicensed and copyleft licenses.
+# Legacy unlicensed/copyleft fields were removed from cargo-deny.
 allow = [
     "MIT",
     "Apache-2.0",
@@ -20,7 +22,6 @@ allow = [
     "Unicode-3.0",
     "Unicode-DFS-2016",
 ]
-copyleft = "deny"
 
 [bans]
 multiple-versions = "warn"
