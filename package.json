@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "wasm": "cd crate && wasm-pack build --target web --out-dir ../pkg --release && node ../scripts/copy-wasm.mjs",
+    "wasm": "python3 scripts/reproduce-wasm.py && node scripts/copy-wasm.mjs",
     "test": "cd crate && cargo test --release",
     "test:browser": "npx playwright test",
     "test:a11y": "playwright test --config=playwright.a11y.config.ts",
