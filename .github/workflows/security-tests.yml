@@ -61,15 +61,17 @@ jobs:
         working-directory: crate
 
       # WASM build verification
-      - name: Install wasm-pack
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-      - name: Build WASM
-        run: wasm-pack build --target web --out-dir ../pkg --release
-        working-directory: crate
+      - name: WASM provenance positive and negative controls
+        run: python3 -B -m unittest discover -s tests -p 'test_wasm_provenance.py' -v
+      - name: Reproduce immutable Rust source with two clean builds
+        run: python3 scripts/reproduce-wasm.py
 
-      # Verify WASM output hash (reproducibility check)
-      - name: Record WASM hash
-        run: sha256sum pkg/shadow_vault_crypto_bg.wasm
+      - name: Retain verified WASM source reproduction evidence
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: wasm-source-reproduction
+          path: pkg/wasm-provenance.json
+          if-no-files-found: error
 
   typescript-checks:
     name: TypeScript & Lint
@@ -90,8 +92,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: crate
-      - name: Install wasm-pack
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - name: WASM provenance positive and negative controls
+        run: python3 -B -m unittest discover -s tests -p 'test_wasm_provenance.py' -v
       - name: Build WASM
         run: npm run wasm
 
@@ -124,8 +126,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: crate
-      - name: Install wasm-pack
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - name: WASM provenance positive and negative controls
+        run: python3 -B -m unittest discover -s tests -p 'test_wasm_provenance.py' -v
       - name: Build WASM
         run: npm run wasm
 

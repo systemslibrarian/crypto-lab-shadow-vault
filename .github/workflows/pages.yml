@@ -28,8 +28,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: crate
-      - name: Install wasm-pack
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - name: WASM provenance positive and negative controls
+        run: python3 -B -m unittest discover -s tests -p 'test_wasm_provenance.py' -v
 
       - uses: actions/setup-node@v7
         with:
@@ -44,6 +44,12 @@ jobs:
 
       - name: Build WASM from source
         run: npm run wasm
+      - name: Retain verified WASM source reproduction evidence
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: wasm-source-reproduction
+          path: pkg/wasm-provenance.json
+          if-no-files-found: error
       - name: TypeScript type check (strict)
         run: npx tsc --noEmit
       - name: Build app
