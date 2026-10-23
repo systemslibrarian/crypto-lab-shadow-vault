@@ -175,7 +175,7 @@ The following security properties were verified correct in the code — no fix n
 
 16. **CSP is restrictive.** `default-src 'none'`; `script-src 'self' 'wasm-unsafe-eval'`; `worker-src 'self'`; `form-action 'none'`; `frame-ancestors 'none'`. No `eval()`, no dynamic script loading, no external scripts.
 
-17. **No localStorage/sessionStorage usage.** Verified by grep across all source files.
+17. **Web Storage is limited to theme preference.** `localStorage` stores only the `dark`/`light` theme choice; no passphrases, messages, containers, keys, or other cryptographic material are persisted. `sessionStorage` is not used.
 
 18. **Input clearing after use.** Encrypt panel clears passphrases and messages after container creation. Decrypt panel clears passphrase after attempt. Auto-clear: 2-minute timer for decrypted message, 5-minute idle timer for all inputs on tab hide.
 
