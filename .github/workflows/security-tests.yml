@@ -106,7 +106,6 @@ jobs:
       # npm audit for JS deps
       - name: npm audit
         run: npm audit --audit-level=high
-        continue-on-error: true  # dev deps may have advisories
 
   browser-tests:
     name: Browser Integration Tests
