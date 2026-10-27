@@ -111,9 +111,11 @@ function initPasswordToggles(): void {
       const input = document.getElementById(targetId) as HTMLInputElement;
       const revealed = input.type === 'password';
       input.type = revealed ? 'text' : 'password';
-      // Emoji is decorative; the accessible name comes from aria-label.
-      const icon = btn.querySelector('[aria-hidden="true"]');
-      if (icon) icon.textContent = revealed ? '\ud83d\ude48' : '\ud83d\udc41';
+      // SVGs are decorative; the accessible name comes from aria-label.
+      const showIcon = btn.querySelector<SVGElement>('[data-passphrase-icon="show"]');
+      const hideIcon = btn.querySelector<SVGElement>('[data-passphrase-icon="hide"]');
+      showIcon?.toggleAttribute('hidden', revealed);
+      hideIcon?.toggleAttribute('hidden', !revealed);
       btn.setAttribute('aria-pressed', String(revealed));
       btn.setAttribute('aria-label', revealed ? 'Hide passphrase' : 'Show passphrase');
     });
