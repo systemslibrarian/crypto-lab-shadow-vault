@@ -994,6 +994,9 @@ export async function driveAllStates(page: Page, theme: string): Promise<void> {
   await expect(page.locator('#panel-decrypt')).toBeVisible();
   await expect(page.locator('#panel-encrypt')).toBeHidden();
   await expect(page.locator('#tab-decrypt')).toBeFocused();
+  await expect(page.locator('#drop-zone')).toHaveAccessibleName(
+    'Drop file, or click / press Enter to upload',
+  );
   await scanAt('decrypt tab — drop zone, creation params, OPEN VAULT disabled');
 
   // Tab from the tablist reaches the drop zone — the keyboard route into the
