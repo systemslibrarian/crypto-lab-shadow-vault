@@ -848,8 +848,14 @@ export async function driveAllStates(page: Page, theme: string): Promise<void> {
 
   // ── The passphrase reveal toggle ────────────────────────────────────────
   const eye = page.locator('.toggle-password[data-target="real-passphrase"]');
+  await expect(eye).toHaveAccessibleName('Show passphrase');
+  await expect(eye.locator('[data-passphrase-icon="show"]')).toBeVisible();
+  await expect(eye.locator('[data-passphrase-icon="hide"]')).toBeHidden();
   await eye.click();
   await expect(eye).toHaveAttribute('aria-pressed', 'true');
+  await expect(eye).toHaveAccessibleName('Hide passphrase');
+  await expect(eye.locator('[data-passphrase-icon="show"]')).toBeHidden();
+  await expect(eye.locator('[data-passphrase-icon="hide"]')).toBeVisible();
   await expect(page.locator('#real-passphrase')).toHaveAttribute('type', 'text');
   await scanAt('real passphrase revealed by the eye toggle');
   await eye.click();
@@ -969,6 +975,10 @@ export async function driveAllStates(page: Page, theme: string): Promise<void> {
   await page.click('#btn-how-it-works');
   await expect(page.locator('#modal-how[open]')).toHaveCount(1);
   await expect(page.locator('#modal-title')).toBeVisible();
+  await expect(page.locator('#btn-close-modal')).toHaveAccessibleName(
+    'Close How Shadow Vault Works'
+  );
+  await expect(page.locator('#btn-close-modal svg[aria-hidden="true"]')).toBeVisible();
   await scanAt('How It Works modal open over the dimmed page');
   await page.keyboard.press('Escape');
   await expect(page.locator('#modal-how[open]')).toHaveCount(0);
@@ -984,6 +994,9 @@ export async function driveAllStates(page: Page, theme: string): Promise<void> {
   await expect(page.locator('#panel-decrypt')).toBeVisible();
   await expect(page.locator('#panel-encrypt')).toBeHidden();
   await expect(page.locator('#tab-decrypt')).toBeFocused();
+  await expect(page.locator('#drop-zone')).toHaveAccessibleName(
+    'Drop file, or click / press Enter to upload',
+  );
   await scanAt('decrypt tab — drop zone, creation params, OPEN VAULT disabled');
 
   // Tab from the tablist reaches the drop zone — the keyboard route into the
@@ -996,6 +1009,10 @@ export async function driveAllStates(page: Page, theme: string): Promise<void> {
   await page.setInputFiles('#decrypt-file', vaultPath);
   await expect(page.locator('#file-info')).toBeVisible();
   await expect(page.locator('#file-info')).toContainText('8,192 bytes');
+  const loadedFileName = await page.locator('#drop-zone p').innerText();
+  await expect(page.locator('#drop-zone')).toHaveAccessibleName(
+    `${loadedFileName} — activate to choose another vault file`,
+  );
   await page.selectOption('#decrypt-param-memory', '16');
 
   // ── The wrong passphrase: the deliberately uniform failure verdict ──────
