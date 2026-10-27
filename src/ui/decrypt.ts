@@ -21,6 +21,12 @@ export function initDecrypt(): void {
   const memoryInput = document.getElementById('decrypt-param-memory') as HTMLSelectElement;
   const iterationsInput = document.getElementById('decrypt-param-iterations') as HTMLSelectElement;
   const parallelismInput = document.getElementById('decrypt-param-parallelism') as HTMLSelectElement;
+  const dropZoneText = dropZone.querySelector('p')!;
+
+  function setDropZoneText(visibleText: string, accessibleName = visibleText): void {
+    dropZoneText.textContent = visibleText;
+    dropZone.setAttribute('aria-label', accessibleName);
+  }
 
   let loadedContainer: Uint8Array | null = null;
   let detectedSize: ContainerSize | null = null;
@@ -61,7 +67,7 @@ export function initDecrypt(): void {
       detectedSize = loadedContainer.length as ContainerSize;
       fileInfo.textContent = `${file.name} — ${loadedContainer.length.toLocaleString()} bytes`;
       fileInfo.classList.remove('hidden');
-      dropZone.querySelector('p')!.textContent = file.name;
+      setDropZoneText(file.name, `${file.name} — activate to choose another vault file`);
       validateForm();
     } catch (err) {
       loadedContainer = null;
@@ -69,7 +75,7 @@ export function initDecrypt(): void {
       fileInfo.classList.add('hidden');
       decryptError.textContent = err instanceof Error ? err.message : 'Invalid file';
       decryptError.classList.remove('hidden');
-      dropZone.querySelector('p')!.textContent = 'Drop file or click to upload';
+      setDropZoneText('Drop file or click to upload');
       validateForm();
     }
   }

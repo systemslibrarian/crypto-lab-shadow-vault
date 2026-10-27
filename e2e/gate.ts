@@ -1009,6 +1009,10 @@ export async function driveAllStates(page: Page, theme: string): Promise<void> {
   await page.setInputFiles('#decrypt-file', vaultPath);
   await expect(page.locator('#file-info')).toBeVisible();
   await expect(page.locator('#file-info')).toContainText('8,192 bytes');
+  const loadedFileName = await page.locator('#drop-zone p').innerText();
+  await expect(page.locator('#drop-zone')).toHaveAccessibleName(
+    `${loadedFileName} — activate to choose another vault file`,
+  );
   await page.selectOption('#decrypt-param-memory', '16');
 
   // ── The wrong passphrase: the deliberately uniform failure verdict ──────
