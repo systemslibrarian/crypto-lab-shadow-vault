@@ -848,8 +848,10 @@ export async function driveAllStates(page: Page, theme: string): Promise<void> {
 
   // ── The passphrase reveal toggle ────────────────────────────────────────
   const eye = page.locator('.toggle-password[data-target="real-passphrase"]');
+  await expect(eye).toHaveAccessibleName('Show passphrase');
   await eye.click();
   await expect(eye).toHaveAttribute('aria-pressed', 'true');
+  await expect(eye).toHaveAccessibleName('Hide passphrase');
   await expect(page.locator('#real-passphrase')).toHaveAttribute('type', 'text');
   await scanAt('real passphrase revealed by the eye toggle');
   await eye.click();

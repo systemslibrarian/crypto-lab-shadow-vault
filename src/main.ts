@@ -112,7 +112,8 @@ function initPasswordToggles(): void {
       const revealed = input.type === 'password';
       input.type = revealed ? 'text' : 'password';
       // Emoji is decorative; the accessible name comes from aria-label.
-      btn.textContent = revealed ? '\ud83d\ude48' : '\ud83d\udc41';
+      const icon = btn.querySelector('[aria-hidden="true"]');
+      if (icon) icon.textContent = revealed ? '\ud83d\ude48' : '\ud83d\udc41';
       btn.setAttribute('aria-pressed', String(revealed));
       btn.setAttribute('aria-label', revealed ? 'Hide passphrase' : 'Show passphrase');
     });
