@@ -975,6 +975,10 @@ export async function driveAllStates(page: Page, theme: string): Promise<void> {
   await page.click('#btn-how-it-works');
   await expect(page.locator('#modal-how[open]')).toHaveCount(1);
   await expect(page.locator('#modal-title')).toBeVisible();
+  await expect(page.locator('#btn-close-modal')).toHaveAccessibleName(
+    'Close How Shadow Vault Works'
+  );
+  await expect(page.locator('#btn-close-modal svg[aria-hidden="true"]')).toBeVisible();
   await scanAt('How It Works modal open over the dimmed page');
   await page.keyboard.press('Escape');
   await expect(page.locator('#modal-how[open]')).toHaveCount(0);
