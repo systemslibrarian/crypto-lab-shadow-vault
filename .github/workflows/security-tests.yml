@@ -105,7 +105,16 @@ jobs:
 
       # npm audit for JS deps
       - name: npm audit
-        run: npm audit --audit-level=high
+        run: npm audit --omit=dev --audit-level=high
+      # Dev advisories stay VISIBLE but never block: GHSA-fc5q-39xc-vjpf
+      # (picomatch <=4.0.7, high) has no fixed release at all -- 4.0.7 IS the
+      # latest -- and reaches this tree only through vite/vitest/eslint, which
+      # ship nothing to the browser. `npm ls picomatch --omit=dev` is empty here
+      # and `npm audit --omit=dev` reports zero. The blocking step above asks
+      # about production dependencies; this one keeps the full picture in the log.
+      - name: Full dependency audit, development included (non-blocking)
+        continue-on-error: true
+        run: npm audit
 
   browser-tests:
     name: Browser Integration Tests
