@@ -15,11 +15,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # The gate, called rather than copied -- the same three jobs the
+  # Dependabot auto-merge waits on in security-tests.yml.
+  gate:
+    uses: ./.github/workflows/gate.yml
+
   build:
+    needs: gate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
 
+      # Build the WASM crypto core from source so the deployed artifact is
+      # provably the one the audited Rust produces — not a stale committed blob.
       # Build the WASM crypto core from source so the deployed artifact is
       # provably the one the audited Rust produces — not a stale committed blob.
       - uses: dtolnay/rust-toolchain@stable
@@ -28,9 +36,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: crate
-      - name: WASM provenance positive and negative controls
-        run: python3 -B -m unittest discover -s tests -p 'test_wasm_provenance.py' -v
-
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -38,51 +43,18 @@ jobs:
       - run: npm ci
 
       # Gate deploy on the crypto test suite — never ship failing crypto.
-      - name: Run Rust crypto tests (release)
-        run: cargo test --release
-        working-directory: crate
-
       - name: Build WASM from source
         run: npm run wasm
-      - name: Retain verified WASM source reproduction evidence
-        uses: actions/upload-artifact@v7.0.2
-        with:
-          name: wasm-source-reproduction
-          path: pkg/wasm-provenance.json
-          if-no-files-found: error
-      - name: TypeScript type check (strict)
-        run: npx tsc --noEmit
       - name: Build app
         run: npm run build
 
       # Gate deploy on both browser suites, run against the production build.
-      - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
-
-      # tests/browser/vault.spec.ts — the WASM integration suite: the engine
-      # self-test, the full encrypt/decrypt round-trip, INV-2 failure
-      # indistinguishability, the CSP header, and the strength estimator.
-      # Unlike most labs in this fleet, `test:a11y` here takes
-      # `--config=playwright.a11y.config.ts`, whose testDir is ./e2e — so it
-      # collects the axe specs ONLY, and this suite really was skipped on
-      # deploy. It runs in security-tests.yml, but that is a separate workflow
-      # on the same push and cannot stop the deploy that push triggers.
-      - name: WASM integration gate (browser)
-        run: npm run test:browser
-        env:
-          CI: true
-
-      - name: Accessibility gate (axe, both themes)
-        run: npm run test:a11y
-        env:
-          CI: true
-
       - uses: actions/upload-pages-artifact@v5
         with:
           path: dist
 
   deploy:
-    needs: build
+    needs: [gate, build]
     runs-on: ubuntu-latest
     environment:
       name: github-pages

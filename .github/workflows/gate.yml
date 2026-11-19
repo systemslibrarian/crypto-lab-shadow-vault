@@ -1,0 +1,166 @@
+name: Gate
+
+# ONE definition of this lab's gate, called by the workflow a Dependabot bump
+# must clear and by the workflow that publishes. `needs:` cannot cross files,
+# so before this the deploy carried its own copy and nothing held the two
+# equal -- in this lab they had already drifted apart.
+#
+# A separate file rather than `workflow_call` on the CI workflow, because that
+# file's dependabot-auto-merge job holds contents: write, pull-requests: write
+# and actions: write, and a called workflow may not hold permissions above its
+# CALLER. Calling it from a deploy that holds contents: read fails the run at
+# startup before any job exists (measured: crypto-lab-key-exchange run
+# 44528331135, conclusion startup_failure).
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  rust-tests:
+    name: Rust Tests & Security
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: clippy, rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crate
+
+      # Formatting check
+      - name: Check formatting
+        run: cargo fmt -- --check
+        working-directory: crate
+
+      # Clippy with all warnings as errors
+      - name: Cargo clippy (strict)
+        run: cargo clippy --release --all-targets -- -D warnings -D clippy::unwrap_used -W clippy::pedantic
+        working-directory: crate
+
+      # Unit + property tests
+      - name: Run Rust tests (release)
+        run: cargo test --release -- --nocapture
+        working-directory: crate
+
+      # Security audit of dependencies.
+      # Pinned for compatibility with the rustc version in rust-toolchain.toml
+      # (1.87.0); newer cargo-audit (0.22.2+) requires rustc 1.88+.
+      - name: Install cargo-audit
+        run: cargo install cargo-audit@0.22.1 --locked
+      - name: Cargo audit
+        run: cargo audit
+        working-directory: crate
+
+      # Check for known-vulnerable dependencies
+      - name: Install cargo-deny
+        # The old checker cannot parse current CVSS 4 advisory records.
+        # Install tooling with stable (MSRV 1.88+) independently of app pins.
+        run: cargo +stable install cargo-deny@0.20.2 --locked
+      - name: Supply-chain checker positive and negative controls
+        run: python3 -B -m unittest discover -s verification -p 'test_supply_chain_policy.py' -v
+      - name: Cargo deny (advisories + licenses)
+        run: cargo deny --locked check advisories licenses
+        working-directory: crate
+
+      # WASM build verification
+      - name: WASM provenance positive and negative controls
+        run: python3 -B -m unittest discover -s tests -p 'test_wasm_provenance.py' -v
+      - name: Reproduce immutable Rust source with two clean builds
+        run: python3 scripts/reproduce-wasm.py
+
+      - name: Retain verified WASM source reproduction evidence
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: wasm-source-reproduction
+          path: pkg/wasm-provenance.json
+          if-no-files-found: error
+
+  typescript-checks:
+    name: TypeScript & Lint
+    runs-on: ubuntu-latest
+    needs: rust-tests
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      # Rust/WASM build (needed for TS compilation)
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crate
+      - name: WASM provenance positive and negative controls
+        run: python3 -B -m unittest discover -s tests -p 'test_wasm_provenance.py' -v
+      - name: Build WASM
+        run: npm run wasm
+
+      - run: npm ci
+
+      # TypeScript strict check
+      - name: TypeScript type check (strict)
+        run: npx tsc --noEmit
+
+      # npm audit for JS deps
+      - name: npm audit
+        run: npm audit --omit=dev --audit-level=high
+      # Dev advisories stay VISIBLE but never block: GHSA-fc5q-39xc-vjpf
+      # (picomatch <=4.0.7, high) has no fixed release at all -- 4.0.7 IS the
+      # latest -- and reaches this tree only through vite/vitest/eslint, which
+      # ship nothing to the browser. `npm ls picomatch --omit=dev` is empty here
+      # and `npm audit --omit=dev` reports zero. The blocking step above asks
+      # about production dependencies; this one keeps the full picture in the log.
+      - name: Full dependency audit, development included (non-blocking)
+        continue-on-error: true
+        run: npm audit
+
+  browser-tests:
+    name: Browser Integration Tests
+    runs-on: ubuntu-latest
+    needs: [rust-tests, typescript-checks]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crate
+      - name: WASM provenance positive and negative controls
+        run: python3 -B -m unittest discover -s tests -p 'test_wasm_provenance.py' -v
+      - name: Build WASM
+        run: npm run wasm
+
+      - run: npm ci
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      - name: Build app
+        run: npm run build
+      - name: Run Playwright tests
+        run: npx playwright test
+        env:
+          CI: true
+      # The default Playwright config covers WASM/browser integration only.
+      # Run the separate full-state axe config here as well so a pull request
+      # cannot pass while the main-only Pages workflow would reject it.
+      - name: Run accessibility tests
+        run: npm run test:a11y
+        env:
+          CI: true
