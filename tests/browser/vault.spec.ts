@@ -104,7 +104,72 @@ test.describe('Encrypt Flow', () => {
     // Verify file size
     const path = await download.path();
     expect(path).toBeTruthy();
+
+    await page.click('#tab-decrypt');
+    await page.locator('#decrypt-file').setInputFiles(path!);
+    for (const [name, value] of [['memory', '16'], ['iterations', '2'], ['parallelism', '1']]) {
+      await page.locator('#decrypt-param-' + name).selectOption(value);
+    }
+    const pass = page.locator('#decrypt-passphrase');
+    const open = page.locator('#btn-decrypt');
+    const message = page.locator('#decrypted-message');
+    const result = page.locator('#decrypt-result');
+    await pass.fill(realPass);
+    await open.click();
+    await expect(message).toHaveText(realMsg, { timeout: 60_000 });
+
+    await pass.fill(decoyPass);
+    await expect(result).toBeHidden();
+    await expect(message).toBeEmpty();
+    await open.click();
+    await expect(message).toHaveText(decoyMsg, { timeout: 60_000 });
+
+    await pass.fill(realPass);
+    // Submit a replacement before the worker can deliver the first reply.
+    await page.evaluate(() => {
+      const button = document.querySelector<HTMLButtonElement>('#btn-decrypt')!;
+      const input = document.querySelector<HTMLInputElement>('#decrypt-passphrase')!;
+      button.click();
+      input.value = 'incorrect-passphrase';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      button.click();
+    });
+    await expect(page.locator('#decrypt-steps')).toContainText('No message found for this passphrase.', { timeout: 60_000 });
+    await expect(page.locator('#decrypt-steps')).not.toContainText('Message decrypted.');
+    await expect(result).toBeHidden();
+    await expect(message).toBeEmpty();
   });
+});
+
+test('a slower earlier file selection cannot replace the current container', async ({ page }) => {
+  await page.goto('.');
+  await page.click('#tab-decrypt');
+  await page.evaluate(async () => {
+    const input = document.querySelector<HTMLInputElement>('#decrypt-file')!;
+    const select = (file: File) => {
+      const transfer = new DataTransfer();
+      transfer.items.add(file);
+      input.files = transfer.files;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+    const slow = new File([new Uint8Array(4096)], 'first.vault');
+    let finish!: (value: ArrayBuffer) => void;
+    slow.arrayBuffer = () => new Promise<ArrayBuffer>(resolve => { finish = resolve; });
+    select(slow);
+    select(new File([new Uint8Array(4096)], 'second.vault'));
+    await new Promise<void>(resolve => {
+      const info = document.querySelector('#file-info')!;
+      if (info.textContent?.includes('second.vault')) return resolve();
+      const observer = new MutationObserver(() => {
+        if (info.textContent?.includes('second.vault')) { observer.disconnect(); resolve(); }
+      });
+      observer.observe(info, { childList: true, subtree: true });
+    });
+    finish(new ArrayBuffer(4096));
+    await new Promise(resolve => setTimeout(resolve, 0));
+  });
+  await expect(page.locator('#file-info')).toContainText('second.vault');
+  await expect(page.locator('#drop-zone')).toHaveAccessibleName(/second.vault/);
 });
 
 test.describe('Failure Indistinguishability (INV-2)', () => {

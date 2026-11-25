@@ -30,6 +30,8 @@ export function initDecrypt(): void {
 
   let loadedContainer: Uint8Array | null = null;
   let detectedSize: ContainerSize | null = null;
+  let fileRevision = 0;
+  let attemptRevision = 0;
 
   // Auto-clear decrypted message after 2 minutes
   const MESSAGE_CLEAR_MS = 2 * 60 * 1000;
@@ -57,19 +59,35 @@ export function initDecrypt(): void {
     return valid;
   }
 
-  async function handleFile(file: File) {
-    decryptError.classList.add('hidden');
-    resultEl.classList.add('hidden');
+  function invalidateAttempt(): void {
+    attemptRevision++;
+    clearDecryptedMessage();
+    stepsEl.replaceChildren();
     progressEl.classList.add('hidden');
+    btnDecrypt.textContent = 'OPEN VAULT';
+    validateForm();
+  }
+
+  async function handleFile(file: File) {
+    const revision = ++fileRevision;
+    loadedContainer = null;
+    detectedSize = null;
+    invalidateAttempt();
+    fileInfo.classList.add('hidden');
+    decryptError.classList.add('hidden');
+    setDropZoneText('Loading vault file…');
 
     try {
-      loadedContainer = await uploadContainer(file);
+      const bytes = await uploadContainer(file);
+      if (revision !== fileRevision) return;
+      loadedContainer = bytes;
       detectedSize = loadedContainer.length as ContainerSize;
       fileInfo.textContent = `${file.name} — ${loadedContainer.length.toLocaleString()} bytes`;
       fileInfo.classList.remove('hidden');
       setDropZoneText(file.name, `${file.name} — activate to choose another vault file`);
       validateForm();
     } catch (err) {
+      if (revision !== fileRevision) return;
       loadedContainer = null;
       detectedSize = null;
       fileInfo.classList.add('hidden');
@@ -111,7 +129,10 @@ export function initDecrypt(): void {
     }
   });
 
-  passInput.addEventListener('input', validateForm);
+  passInput.addEventListener('input', invalidateAttempt);
+  for (const select of [memoryInput, iterationsInput, parallelismInput]) {
+    select.addEventListener('change', invalidateAttempt);
+  }
 
   function addStep(text: string): HTMLElement {
     const step = document.createElement('div');
@@ -129,11 +150,11 @@ export function initDecrypt(): void {
   btnDecrypt.addEventListener('click', async () => {
     if (!loadedContainer || !detectedSize || !passInput.value) return;
 
+    const revision = ++attemptRevision;
     btnDecrypt.disabled = true;
     btnDecrypt.textContent = 'OPENING...';
     decryptError.classList.add('hidden');
-    resultEl.classList.add('hidden');
-    messageEl.textContent = ''; // Clear previous decrypted message
+    clearDecryptedMessage();
     progressEl.classList.remove('hidden');
     stepsEl.innerHTML = '';
 
@@ -160,6 +181,7 @@ export function initDecrypt(): void {
         config,
       );
 
+      if (revision !== attemptRevision) return;
       markStepDone(workingStep);
 
       if (result.success && result.message !== undefined) {
@@ -184,13 +206,16 @@ export function initDecrypt(): void {
       // MUST show the same generic message as wrong-passphrase.
       // Do NOT log the error detail to the console in production —
       // it could leak information about container validity.
+      if (revision !== attemptRevision) return;
       markStepDone(workingStep);
       const fail = addStep('No message found for this passphrase.');
       fail.className = 'text-vault-danger';
       fail.textContent = '✗ No message found for this passphrase.';
     } finally {
-      btnDecrypt.textContent = 'OPEN VAULT';
-      validateForm();
+      if (revision === attemptRevision) {
+        btnDecrypt.textContent = 'OPEN VAULT';
+        validateForm();
+      }
     }
   });
 
